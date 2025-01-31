@@ -13,7 +13,7 @@ authors = ["xphost"]
 serde_json = "1.0.116"															# 解析JSON
 sysinfo = "0.30.11"																# 获取系统内存信息
 reqwest = {version = "0.12.4", features = ["blocking"]}							# 网络请求
-tokio = { version = "1.37.0", features = ["rt", "rt-multi-thread", "macros"] }	# 异步模块
+tokio = { version = "1.37.0", features = ["full"] }	                            # 异步模块，这里使用full所有的功能（）
 walkdir = "2.5.0"																# 遍历文件夹
 regex = "1.10.5"																# 使用正则表达式
 rust-crypto = "0.2.36"															# 使用各种加密，包括sha1和md5
