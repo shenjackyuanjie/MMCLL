@@ -9,8 +9,8 @@
  */
 pub mod some_const {
     pub const LAUNCHER_NANE: &str = "MMCLL";  //在使用此库时，请自觉将此值改成你的【<启动器名称>】。在使用默认方式启动时，会自动将【${launcher_name}】替换成该值。
-    pub const LAUNCHER_VERSION: &str = "0.0.1-Alpha-11"; //在使用此库时，请自觉将此值改成你的【<启动器版本>】【可以加上Alpha、Beta、Pre三个值，因为在启动替换（${launcher_version}）时用到这个值。不过各位可以自行去函数put_arguments进行修改以适配该值。】
-    pub const USER_AGENT: &str = "MMCLL/0.0.1.11";  //在使用此库时，请自觉将此值改成你的【<启动器名称>/<启动器版本>】。
+    pub const LAUNCHER_VERSION: &str = "0.0.1-Alpha-12"; //在使用此库时，请自觉将此值改成你的【<启动器版本>】【可以加上Alpha、Beta、Pre三个值，因为在启动替换（${launcher_version}）时用到这个值。不过各位可以自行去函数put_arguments进行修改以适配该值。】
+    pub const USER_AGENT: &str = "MMCLL/0.0.1.12";  //在使用此库时，请自觉将此值改成你的【<启动器名称>/<启动器版本>】。
     pub const OK: i32 = 0;  //完成
     pub const ERR_UNKNOWN_ERROR: i32 = 1;  //未知错误
     //以下是启动游戏时的部分错误代码
@@ -55,12 +55,20 @@ pub mod some_const {
     pub const ERR_LOGIN_USERNAME_OR_PASSWORD: i32 = -15;  //第三方登录：账号密码错误。
     pub const ERR_LOGIN_INVALID_ACCESS_TOKEN: i32 = -16;  //第三方登录：无效的令牌。
     pub const ERR_LOGIN_ACCESS_TOKEN_EXPIRE: i32 = -17;  //第三方登录，用于刷新的登录密钥已过期很久。
-    //以下是下载部分
+    //以下是下载部分（获取源）
     pub const ERR_DOWNLOAD_CANNOT_GET_METADATA: i32 = -1;  //获取元数据失败（适用于任何情况）
     pub const ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT: i32 = -2;  //forge版本未找到
-    pub const ERR_DOWNLOAD_FABRIC_VERSION_NOT_FOUNT: i32 = -3;  //forge版本未找到
-    pub const ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT: i32 = -4;  //forge版本未找到
-    pub const ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT: i32 = -5;  //forge版本未找到
+    pub const ERR_DOWNLOAD_FABRIC_VERSION_NOT_FOUNT: i32 = -3;  //fabric版本未找到
+    pub const ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT: i32 = -4;  //quilt版本未找到
+    pub const ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT: i32 = -5;  //neoforge版本未找到
+    //以下是下载部分（下载MC）
+    pub const ERR_DOWNLOAD_ARGUMENTS_ERROR: i32 = -6;  //填入参数有误
+    pub const ERR_DOWNLOAD_FILE_EXISTS: i32 = -7;  //文件已存在
+    pub const ERR_DOWNLOAD_CANNOT_CREATE_DIR: i32 = -8;  //无法创建父文件夹
+    pub const ERR_DOWNLOAD_NOT_SUPPORT_SYSTEM: i32 = -9;  //不支持的系统
+    pub const ERR_DOWNLOAD_FILE_DOWNLOAD_FAILURE: i32 = -10;  //文件下载失败
+    pub const ERR_DOWNLOAD_DOWNLOAD_FAILURE: i32 = -11;  //整体某一线程出现失误
+    // pub const ERR_DOWNLOAD_INVALID_NAME_OR_HASH: i32 = -12;  //未找到类似name或hash等值的关键信息，下载失败~
 }
 /**
  * 部分全局变量值。在需要的时候可以使用with_borrow包裹住该变量以便使用，赋值和引用均可。但是你需要为你赋过的值负责！。
@@ -79,6 +87,8 @@ pub mod some_var {
  * 请在使用该类的时候，提前将BIGGEST_THREAD给赋值上。否则将会按照默认64进行。
  */
 pub mod download_mod {
+    use crate::rust_lib::some_var::*;
+    use super::some_const::*;
     /** 
      * 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
      */
@@ -97,7 +107,6 @@ pub mod download_mod {
      * 具体格式请见：README.md
      */
     pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i32> {
-        use super::some_const::*;
         if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
             let md = String::from_utf8(super::account_mod::UrlMethod::new(format!("https://bmclapi2.bangbang93.com/forge/minecraft/{}", mcversion).as_str()).get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 3)?;
             let sj = serde_json::from_str::<serde_json::Value>(md.as_str()).map_err(|_| ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT)?;
@@ -202,7 +211,6 @@ pub mod download_mod {
      * 获取fabric版本的TLM实现版JSON
      */
     pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i32> {
-        use super::some_const::*;
         let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
             2 => { format!("https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader/{}", mcversion) }
             _ => { format!("https://meta.fabricmc.net/v2/versions/loader/{}", mcversion) }
@@ -239,7 +247,6 @@ pub mod download_mod {
      * 获取quilt版本的TLM实现版JSON
      */
     pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32> {
-        use super::some_const::*;
         let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
             2 => { format!("https://bmclapi2.bangbang93.com/quilt-meta/v3/versions/loader/{}", mcversion) }
             _ => { format!("https://meta.quiltmc.org/v3/versions/loader/{}", mcversion) }
@@ -276,7 +283,6 @@ pub mod download_mod {
      * 获取neoforge版本的TLM实现版JSON
      */
     pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, i32> {
-        use super::some_const::*;
         if mcversion.eq("1.20.1") {
             let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
                 2 => { "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/forge".to_string() }
@@ -358,9 +364,69 @@ pub mod download_mod {
             Ok(res.clone())
         }
     }
-    #[allow(unused)]
+    /**
+     * 这个函数是专门用来下载文件的，但是是私有的。
+     */
+    async fn download_as_window(savepath: &str, download_url: &str, file_hash: &str) -> Result<(), i32> {
+        let file_path = std::path::Path::new(savepath);
+        if file_path.exists() {
+            if file_hash.is_empty() { return Err(ERR_DOWNLOAD_FILE_EXISTS); }
+            let real_file_hash = crate::rust_lib::main_mod::get_sha1(savepath);
+            if let None = real_file_hash { return Err(ERR_DOWNLOAD_FILE_EXISTS); }
+            let real_file_hash = real_file_hash.unwrap();
+            if real_file_hash.ne(file_hash) {
+                if !crate::rust_lib::main_mod::delete_file(savepath) {
+                    return Err(ERR_DOWNLOAD_FILE_EXISTS);
+                }
+            }else { return Err(ERR_DOWNLOAD_FILE_EXISTS); }
+        }else{
+            let parent = file_path.parent();
+            if let None = parent { return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR); }
+            let rt = std::fs::create_dir_all(file_path.parent().unwrap());
+            if let Err(_) = rt { return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR); }
+        }
+        if download_url.contains("linux") || download_url.contains("macos") || download_url.contains("osx") {
+            return Err(ERR_DOWNLOAD_NOT_SUPPORT_SYSTEM);
+        }
+        let url = super::account_mod::UrlMethod::new(download_url);
+        let url = url.get_default_async().await;
+        if let None = url { return Err(ERR_DOWNLOAD_FILE_DOWNLOAD_FAILURE); }
+        let url = url.unwrap();
+        if !file_path.exists() {
+            super::main_mod::set_file_vecu8(savepath, &url);
+            Ok(())
+        }else{
+            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+        }
+    }
+    /**
+     * 一个有关下载任务的一个结构体，里面存了save_path、download_url、file_hash等字段
+     */
+    #[derive(Clone)]
+    struct DownloadTask {
+        save_path: String,
+        download_url: String,
+        file_hash: String,
+    }
+    /**
+     * 一个有关下载任务的实现，里面仅实现了contains，用于判断值是否相等。如果有任何一个值相等相等，则返回true~
+     */
+    trait DownloadTaskImpl {
+        fn contains(&self, has: &DownloadTask) -> bool;
+    }
+    impl DownloadTaskImpl for Vec<DownloadTask> {
+        fn contains(&self, x: &DownloadTask) -> bool {
+            for i in self.iter() {
+                if i.download_url.eq(x.download_url.as_str()) || i.file_hash.eq(x.file_hash.as_str()) || i.save_path.eq(x.save_path.as_str()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+    #[derive(Debug, Clone)]
     pub struct DownloadMethod {
-        key: String,
+        savepath: String,
     }
     /**
      * 会自动匹配下载源，只需要提前将DOWNLOAD_SOURCE赋值完毕即可。
@@ -369,43 +435,257 @@ pub mod download_mod {
      * 在下载自定义函数的时候，仅需使用tokio运行一次该函数即可。
      * 因为该库会自动调用最大线程进行切割文件并进行下载。
      * 当然，如果你想自己实现多线程下载的话，也可以调用UrlMethod的get_default_async自主实现多异步下载。、
-     * 除了Rust语言有async异步以外，Java、Python、Go等语言都有异步模型，因此均采用多异步而不是多线程进行下载。
-     * 除了某些语言可能没有多线程，例如Delphi/Object Pascal仅有的Task、Thread等。
+     * 除了Rust语言有async异步以外，Python、Go等语言都有异步模型，因此均采用多异步而不是多线程进行下载。
+     * 除了某些语言可能没有异步，例如Delphi/Object Pascal仅有的Task、Thread等。
      */
     impl DownloadMethod {
         /**
-         * 新建一个下载实现。key根据需求填入
+         * 新建一个下载实现。savepath根据需求填入
          * 参见以下各种new实例
          */
-        #[allow(unused)]
-        pub fn new(key: &str) -> Self {
+        pub fn new(savepath: &str) -> Self {
             Self {
-                key: key.to_string(),
+                savepath: savepath.to_string(),
             }
         }
         /**
          * 该函数使用的是安装Minecraft的类库。并且实时显示回显在callback里。
+         * savepath需要填入类似于.minecraft文件夹的位置。
+         * raw_json需要填入json源文件~
+         * callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
          */
-        #[allow(unused)]
-        pub async fn install_minecraft_libraries() -> Result<(), i32> {
+        pub async fn download_minecraft_libraries<T>(&self, raw_json: String, callback: T) -> Result<(), i32> 
+        where
+            T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static
+        {
+            let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str()).map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            let libs  = libs["libraries"].as_array().ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            let mut lib_vec: Vec<DownloadTask> = Vec::new();
+            for m in 0..libs.len() {
+                let i = libs[m].clone();
+                if !super::launcher_mod::judge_mc_rules(&i.clone()) { continue; }
+                let dn = i.get("downloads");
+                if let Some(dn) = dn {
+                    let da = dn.get("artifact");
+                    if let Some(da) = da {
+                        let sap = da["path"].as_str();
+                        if let Some(sap) = sap {
+                            let sha = da["sha1"].as_str();
+                            if let Some(sha) = sha {
+                                let url = da["url"].as_str();
+                                if let Some(url) = url {
+                                    let sapth = self.savepath.clone() + "\\libraries\\" + sap.replace("/", "\\").as_str();
+                                    lib_vec.push(DownloadTask {
+                                        save_path: sapth.clone(),
+                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { url.to_string() } else { url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/maven/") },
+                                        file_hash: sha.to_string(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    let dc = dn.get("classifiers");
+                    if let Some(dc) = dc {
+                        let dnw = dc.get("natives-windows");
+                        if let Some(dnw) = dnw {
+                            let sap = dnw["path"].as_str();
+                            if let Some(sap) = sap {
+                                let sha = dnw["sha1"].as_str();
+                                if let Some(sha) = sha {
+                                    let url = dnw["url"].as_str();
+                                    if let Some(url) = url {
+                                        let sapth = self.savepath.clone() + "\\libraries\\" + sap.replace("/", "\\").as_str();
+                                        lib_vec.push(DownloadTask {
+                                            save_path: sapth.clone(),
+                                            download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { url.to_string() } else { url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/maven/") },
+                                            file_hash: sha.to_string(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        let dnwx = dc.get("natives-windows-x64");
+                        if let Some(dnwx) = dnwx {
+                            let sap = dnwx["path"].as_str();
+                            if let Some(sap) = sap {
+                                let sha = dnwx["sha1"].as_str();
+                                if let Some(sha) = sha {
+                                    let url = dnwx["url"].as_str();
+                                    if let Some(url) = url {
+                                        let sapth = self.savepath.clone() + "\\libraries\\" + sap.replace("/", "\\").as_str();
+                                        lib_vec.push(DownloadTask {
+                                            save_path: sapth.clone(),
+                                            download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { url.to_string() } else { url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/maven/") },
+                                            file_hash: sha.to_string(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                let name = i["name"].as_str();
+                if let None = name { continue; }
+                let mut name = name.unwrap().to_string();
+                if name.is_empty() { continue; }
+                if name.contains("linux") || name.contains("macos") || name.contains("osx") || name.contains("x86") { continue; }
+                let real_native = i["natives"]["windows"].as_str();
+                if let Some(e) = real_native { name = format!("{}:{}", name, e); }
+                let real_path = super::launcher_mod::convert_name_to_path(name.to_string());
+                if let None = real_path { continue; }
+                let real_path = real_path.unwrap();
+                let real_save = format!("{}\\libraries\\{}", self.savepath, real_path);
+                let real_url = if let Some(e) = i["url"].as_str() {
+                    if !e.ends_with("/") { format!("{}/{}", e, real_path.replace("\\", "/")) }
+                    else { format!("{}{}", e, real_path.replace("\\", "/")) }
+                } else { format!("{}/{}", if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { "https://libraries.minecraft.net" } else { "https://bmclapi2.bangbang93.com/maven" }, real_path.replace("\\", "/")) };
+                let sha1 = if let Some(e) = i["sha1"].as_str() { e } else { "" };
+                let t = DownloadTask {
+                    save_path: real_save.clone(),
+                    download_url: real_url.clone(),
+                    file_hash: sha1.to_string(),
+                };
+                if lib_vec.contains(&t) { continue; }
+                lib_vec.push(t);
+            }
+            //以上为lib_vec赋值了，现在lib_vec里面存放了所有来自libraries的DownloadTask实例~
+            let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| e.clone());
+            let bgt = if bgt > 256 || bgt < 1 { 32 as usize } else { bgt as usize }; 
+            let bgt = if bgt < lib_vec.len() { bgt } else { lib_vec.len() };
+            let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
+            let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(bgt));
+            for (index, lib) in lib_vec.into_iter().enumerate() {
+                let semaphore = semaphore.clone();
+                let permit = semaphore.acquire_owned().await.unwrap();
+                let task = tokio::spawn( async move {
+                    let f = download_as_window(lib.save_path.as_str(), lib.download_url.as_str(), lib.file_hash.as_str()).await;
+                    if let Err(e) = f {
+                        callback(lib.download_url, index, e);
+                    }else{
+                        callback(lib.download_url, index, OK);
+                    }
+                    drop(permit);
+                });
+                tasks.push(task);
+            }
+            // 以下代码均为自己思考，并且均弃用了方法~
+            // 直到我用了deepseek之后，我才能使用信号量来限制最大线程数量。
+            // let mut tdl_count = 0;
+            // let mut tvl_count = 0;
+            // for i in 0..bgt {
+            //     let lib_vec = lib_vec.clone();
+            //     tasks.push(tokio::task::spawn( async move {
+            //         while tdl_count < lib_vec.len() {
+            //             let download_url = lib_vec[tdl_count].download_url.clone();
+            //             let file_hash = lib_vec[tdl_count].file_hash.clone();
+            //             let save_path = lib_vec[tdl_count].save_path.clone();
+            //             let index = lib_vec[tdl_count].index.clone();
+            //             tdl_count += 1;
+            //             let f = download_as_window(save_path.as_str(), download_url.as_str(), file_hash.as_str()).await;
+            //             tvl_count += 1;
+            //             if let Err(e) = f {
+            //                 callback(download_url, tvl_count, e);
+            //             }else{
+            //                 callback(download_url, tvl_count, OK);
+            //             }
+            //         }
+            //         // Self::run_download(i, callback, lib_vec).await;
+            //         // tdl_count += 1;
+            //         // download_as_window(lib_vec[tvl_count].save_path.as_str(), lib_vec[tvl_count].download_url.as_str(), lib_vec[tvl_count].file_hash.as_str()).await;
+            //         // tvl_count += 1;
+            //         // callback(lib_vec[tvl_count].download_url.clone(), tvl_count, OK);
+            //     }));
+            // }
+            // for (index, dt) in lib_vec.into_iter().enumerate() {
+            //     while tasks.len() >= bgt {
+            //         for i in 0..tasks.len() {
+            //             if tasks[i].is_finished() {
+            //                 tasks.remove(i);
+            //                 break;
+            //             }
+            //         }
+            //     }
+            //     // if tasks.len() > bgt {
+            //     //     if let Ok(e) = tasks.pop().unwrap().await {
+            //     //         callback(e.0, e.1, e.2);
+            //     //     }else{
+            //     //         return Err(ERR_DOWNLOAD_DOWNLOAD_FAILURE);
+            //     //     }
+            //     // }
+            //     let task = tokio::task::spawn(async move {
+            //         let index = index.clone();
+            //         let dt = dt.clone();
+            //         let f = download_as_window(dt.save_path.as_str(), dt.download_url.as_str(), dt.file_hash.as_str()).await;
+            //         if let Err(e) = f {
+            //             callback(dt.save_path, index, e);
+            //         }else{
+            //             callback(dt.save_path, index, OK);
+            //         }
+            //     });
+            //     tasks.push(task);
+            // }
+            for task in tasks.into_iter() {
+                if let Err(_) = task.await {
+                    return Err(ERR_DOWNLOAD_DOWNLOAD_FAILURE);
+                }
+            }
             Ok(())
         }
-        // #[allow(unused)]
-        // pub async fn install_java() -> Result<(), i32> {
-        //     Ok(())
-        // }
-        // #[allow(unused)]
-        // pub async fn install_forge() -> Result<(), i32> {
-        //     Ok(())
-        // }
-        // #[allow(unused)]
-        // pub async fn download_custom() -> Result<(), i32> {
-        //     Ok(())
-        // }
-        // #[allow(unused)]
-        // pub async fn get_mc_metadata() -> Option<String> {
-        //     None
-        // }
+        /**
+         * 该函数使用的是安装Minecraft的资源文件。并且实时显示回显在callback里。
+         * savepath需要填入类似于.minecraft文件夹的位置。
+         * raw_json需要填入assets json源文件~（就是一堆hash的那个json）
+         * callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
+         */
+        pub async fn download_minecraft_assets<T>(&self, raw_json: String, callback: T) -> Result<(), i32> 
+        where
+            T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static
+        {
+            let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str()).map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            let libs  = libs["objects"].as_object().ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            let mut lib_vec: Vec<DownloadTask> = Vec::new();
+            for i in libs.keys() {
+                let dh = libs[i]["hash"].as_str();
+                if let Some(dh) = dh {
+                    let sub = &dh[0..2];
+                    lib_vec.push(DownloadTask {
+                        save_path: format!("{}\\assets\\objects\\{}\\{}", self.savepath, sub, dh),
+                        download_url: format!("{}/{}/{}", 
+                            if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { 
+                                "https://resources.download.minecraft.net" 
+                            } else { 
+                                "https://bmclapi2.bangbang93.com/assets" 
+                            }, sub, dh),
+                        file_hash: dh.to_string(),
+                    });
+                }
+            }
+            let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| e.clone());
+            let bgt = if bgt > 256 || bgt < 1 { 32 as usize } else { bgt as usize }; 
+            let bgt = if bgt < lib_vec.len() { bgt } else { lib_vec.len() };
+            let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
+            let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(bgt));
+            for (index, lib) in lib_vec.into_iter().enumerate() {
+                let semaphore = semaphore.clone();
+                let permit = semaphore.acquire_owned().await.unwrap();
+                let task = tokio::spawn( async move {
+                    let f = download_as_window(lib.save_path.as_str(), lib.download_url.as_str(), lib.file_hash.as_str()).await;
+                    if let Err(e) = f {
+                        callback(lib.download_url, index, e);
+                    }else{
+                        callback(lib.download_url, index, OK);
+                    }
+                    drop(permit);
+                });
+                tasks.push(task);
+            }
+            for task in tasks.into_iter() {
+                if let Err(_) = task.await {
+                    return Err(ERR_DOWNLOAD_DOWNLOAD_FAILURE);
+                }
+            }
+            Ok(())
+        }
     }
 }
 /**
@@ -605,6 +885,7 @@ pub mod account_mod {
             self.base = base.to_string();
         }
     }
+    use super::some_const::*;
     pub struct AccountLogin {
         key: String,
     }
@@ -618,7 +899,7 @@ pub mod account_mod {
         }
         /**
          * 外置登录需要填入一个服务器地址
-         * 该服务器地址需要精确到api/yggdrasil/以便我直接进行post、get。
+         * 该服务器地址需要精确到api/yggdrasil/以便直接进行post、get。
          * 记住，服务器地址末尾必须不能有/符号，否则一定会出错！
          * 示例填入：https://littleskin.cn/api/yggdrasil
          */
@@ -641,22 +922,21 @@ pub mod account_mod {
             let client = UrlMethod::new(URL);
             let res = client.post_async(k1.as_str(), true)
                 .await
-                .ok_or(super::some_const::ERR_LOGIN_CANNOT_GET_USERCODE)?;
+                .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE)?;
             let login = serde_json::from_str::<serde_json::Value>(res.as_str())
-                .map_err(|_| super::some_const::ERR_LOGIN_CANNOT_GET_USERCODE )?;
+                .map_err(|_| ERR_LOGIN_CANNOT_GET_USERCODE )?;
             let user_code = login["user_code"]
                 .as_str()
-                .ok_or(super::some_const::ERR_LOGIN_CANNOT_GET_USERCODE )?;
+                .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE )?;
             let device_code = login["device_code"]
                 .as_str()
-                .ok_or(super::some_const::ERR_LOGIN_CANNOT_GET_USERCODE )?;
+                .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE )?;
             Ok((user_code.to_string(), device_code.to_string()))
         }
         /**
          * 登录的时候是刷新还是请求，这里是私有函数。
          */
         async fn microsoft(&self, access_token: &str, refresh_token: &str) -> Result<AccountResult, i32> {
-            use super::some_const::*;
             const XBOX_LIVE: &str = "https://user.auth.xboxlive.com/user/authenticate";
             const XSTS_LIVE: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
             const MC_LIVE: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
@@ -723,7 +1003,6 @@ pub mod account_mod {
          * 公开函数，用于登录微软账号。需要提供一个device_code。
          */
         pub async fn login_microsoft(&self, device_code: String) -> Result<AccountResult, i32> {
-            use super::some_const::*;
             const MS_LIVE: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
             let k1 = format!("grant_type=urn:ietf:params:oauth:grant-type:device_code&client_id={}&device_code={}", self.key, device_code);
             let client = UrlMethod::new(MS_LIVE);
@@ -753,7 +1032,6 @@ pub mod account_mod {
          * 刷新微软账号，需要提供一个refresh_token。
          */
         pub async fn refresh_microsoft(&self, refresh_token: String) -> Result<AccountResult, i32> {
-            use super::some_const::*;
             const MS_LIVE: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
             let k1 = format!("grant_type=refresh_token&client_id={}&refresh_token={}", self.key, refresh_token);
             let client = UrlMethod::new(MS_LIVE);
@@ -781,7 +1059,6 @@ pub mod account_mod {
          * 外置登录，输入账号和密码，如果有client_token，则也填写，否则填String::new()即可。
          */
         pub async fn login_thirdparty(&self, username: String, password: String, client_token: String) -> Result<Vec<AccountResult>, i32> {
-            use super::some_const::*;
             use base64::Engine;
             let base = UrlMethod::new(self.key.as_str());
             let base = base.get_default_async().await.ok_or(ERR_LOGIN_CANNOT_GET_METADATA)?;
@@ -829,7 +1106,6 @@ pub mod account_mod {
          * 刷新外置登录，填入access_token，如果有client_token则填，否则填String::new()即可。
          */
         pub async fn refresh_thirdparty(&self, access_token: String, client_token: String) -> Result<AccountResult, i32> {
-            use super::some_const::*;
             let res = format!("{}/authserver/refresh", self.key.to_string());
             let k1: String;
             if client_token.is_empty() {
@@ -861,13 +1137,12 @@ pub mod account_mod {
  * 许多在启动时可能需要用到的静态函数。（无需初始化，仅需直接调用。）
  */
 pub mod main_mod {
-    use std::io::Read;
-
     /**
      * 从一个path获取外部文件。
      * 此处使用了encoding转码，以防止有某些大聪明玩家使用GBK方式写文件
      */
     pub fn get_file(path: &str) -> Option<String> {
+        use std::io::Read;
         let p = std::path::Path::new(path);
         let mut ss = std::fs::File::open(p).ok()?;
         let mut buf = Vec::new();
@@ -880,9 +1155,9 @@ pub mod main_mod {
         }
     }
     /**
-     * 将内容写出到文件
+     * 将Vec<u8>写出到文件
      */
-    pub fn set_file(path: &str, content: String) -> bool {
+    pub fn set_file_vecu8(path: &str, content: &[u8]) -> bool {
         let p = std::path::Path::new(path);
         if p.is_dir() { return false; }
         let parent = match p.parent() {
@@ -898,10 +1173,16 @@ pub mod main_mod {
             Err(_) => return false,
         };
         use std::io::Write;
-        match f.write_all(content.as_bytes()) {
+        match f.write_all(&content) {
             Ok(_) => true,
             Err(_) => false,
         }
+    }
+    /**
+     * 将内容写出到文件
+     */
+    pub fn set_file(path: &str, content: String) -> bool {
+        return set_file_vecu8(path, content.as_bytes());
     }
     /**
      * 删除文件
@@ -1691,6 +1972,7 @@ pub mod launcher_mod {
             self.additional_game.as_str()
         }
     }
+    use super::some_const::*;
     struct LaunchGame {
         account: LaunchAccount,
         java_path: String,
@@ -1735,7 +2017,6 @@ pub mod launcher_mod {
          * 启动游戏的私有函数，此处为检查是否有错。
          */
         fn check_error(&self) -> i32 {
-            use super::some_const::*;
             let event_loop = winit::event_loop::EventLoop::new();
             let monitor = event_loop.available_monitors().next();
             if let None = monitor { return ERR_UNKNOWN_ERROR; }
@@ -1793,7 +2074,6 @@ pub mod launcher_mod {
          * 拼接全局参数
          */
         fn put_arguments(&self, real_json: String, def_jvm: String, defn_jvm: String) -> Result<Vec<String>, i32> {
-            use super::some_const::*;
             let root = serde_json::from_str::<serde_json::Value>(real_json.as_str()).map_err(|_| ERR_GAME_RAW_JSON_STRUCTURE)?;
             let mcid = root["id"].as_str().ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?;
             let main_class = root["mainClass"].as_str().ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?;
@@ -1916,7 +2196,6 @@ pub mod launcher_mod {
          * 如果没有错误，则会调用该函数。如果启动过程中出现不可预知的错误，则会直接panic掉！
          */
         fn game_launch(&self) -> i32 {
-            use super::some_const::*;
             let def_jvm: String = String::from("-XX:+UseG1GC -XX:-UseAdaptiveSizePolicy -XX:-OmitStackTraceInFastThrow -Dfml.ignoreInvalidMinecraftCertificates=true -Dfml.ignorePatchDiscrepancies=true -Dlog4j2.formatMsgNoLookups=true");
             let defn_jvm: String = String::from("-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump");
             let version_json_path = get_mc_real_path(self.version_path.clone(), ".json");

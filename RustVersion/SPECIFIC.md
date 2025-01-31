@@ -388,4 +388,22 @@ pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32
 
 pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, i32>
 	同Forge，但是是NeoForge的。
+
+impl DownloadMethod
+	下载总类，可以从中下载MC的libraries和assets
+
+    pub fn new(savepath: &str) -> Self
+		创建一个DownloadMethod类。参数填入.minecraft根路径【必须】
+
+    pub async fn download_minecraft_libraries<T>(&self, raw_json: String, callback: T) -> Result<(), i32> 
+		下载MC的libraries。
+		第一个参数为self，也就是可以调用本身的savepath。第二个参数为原始JSON，这里需要填入你的MC总版本JSON文件。第三个参数是个闭包。
+		其中第三个参数闭包里有三个参数，第一个参数是当前下载的网络地址，第二个参数是当前下载的index索引（通常指的是该文件在libraries中的位置），第三个参数是错误信息，如果为0则为OK，否则请按照some_const中确认。
+	
+    pub async fn download_minecraft_assets<T>(&self, raw_json: String, callback: T) -> Result<(), i32> 
+		下载MC的Assets。
+		同上，但是这里的raw_json为assets的JSON文件。也就是有许多hash的那个文件。存在assets里面。
+	
+	下载总类的示例请参阅EXAMPLE.md。
+
 ```

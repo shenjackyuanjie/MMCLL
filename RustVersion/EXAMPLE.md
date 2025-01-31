@@ -228,3 +228,36 @@ pub fn set_thirdparty() {
     });
 }
 ```
+## 这里是使用MMCLL进行下载MC的操作：
+
+```rust
+pub fn download_mc() {
+    //目前这里也是仅打印，但是是有时间显示~
+    let start = std::time::Instant::now();
+    //这里在外部写一个DownloadMethod，参数传入.minecraft根路径，这里作测试就直接用D:\\MCTestAssets。
+    let test: rust_lib::download_mod::DownloadMethod = rust_lib::download_mod::DownloadMethod::new(
+        "D:\\MCTest"
+    );
+    //这里写一个tokio，并且阻塞主线程运行异步函数。
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(async {
+        //阻塞并下载D:\\MCTest***.json里的内容，当然这里请换成你自己的JSON。或者也可以看TLM里的示例~
+        test.download_minecraft_libraries(
+            rust_lib::main_mod::get_file("D:\\MCTestLibraries.json").unwrap(),
+            |s, i, j| {
+                //这里依旧是仅打印输出~
+                println!("{} {} {}", s, i, j);
+            }
+        ).await.unwrap();
+        test.download_minecraft_assets(
+            rust_lib::main_mod::get_file("D:\\MCTestAssets.json").unwrap(),
+            |s, i, j| {
+                println!("{} {} {}", s, i, j);
+            }
+        ).await.unwrap();
+    });
+    let dur = start.elapsed();
+    //执行完成，现在你应该能看到文件已经保存到外部了~
+    println!("Finish!! spend time: {:?}", dur);
+}
+```

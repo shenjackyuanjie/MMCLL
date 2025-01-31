@@ -33,7 +33,7 @@
 |Delphi|DelphiVersion|5%|
 |易语言|EVersion|0%|
 |Go|GoVersion|0%|
-|Rust|RustVersion|51%|
+|Rust|RustVersion|58%|
 
 - 其中，很多种文件夹有多个文件。只有极少数语言里仅含有单个文件。例如：
 
