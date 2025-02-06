@@ -704,32 +704,32 @@ pub mod launcher_mod {
     /// root_path里面包含【assets、libraries】两个文件夹
     /// version_path里面包含【版本.json、版本.jar】两个文件
     /// 后期解压Native是默认解压到version_path路径下的！
-    /// @param account: 账号类，参见LaunchAccount。
-    /// @param java_path: Java路径
-    /// @param root_path: MC根路径（用于查询assets、libraries）
-    /// @param version_path: MC版本路径（用于查询MC元数据JSON和本体jar）
-    /// @param game_path: MC游戏文件夹（直接用于存储游戏目录）
-    /// @param window_height: 游戏窗口高度
-    /// @param window_width: 游戏窗口宽度
-    /// @param max_memory: 游戏最大内存
-    /// @param custom_info: 游戏自定义信息（显示在游戏标题界面的右下角和游戏内f3的基本信息。）
-    /// @param additional_jvm: 游戏额外JVM参数
-    /// @param additional_game: 游戏额外game参数
-    /// @param pre_launch_script: 启动前执行脚本
 
     #[derive(Clone)]
     pub struct LaunchOption {
+        /// 账号类
         account: LaunchAccount,
+        /// Java路径
         java_path: String,
+        /// MC根路径
         root_path: String,
+        /// MC版本路径
         version_path: String,
+        /// MC游戏文件夹
         game_path: String,
+        /// 游戏窗口高度
         window_height: usize,
+        /// 游戏窗口宽度
         window_width: usize,
+        /// 游戏最小内存
         min_memory: usize,
+        /// 游戏最大内存
         max_memory: usize,
+        /// 游戏自定义信息
         custom_info: String,
+        /// 游戏额外JVM参数
         additional_jvm: String,
+        /// 游戏额外game参数
         additional_game: String,
     }
     impl LaunchOption {
@@ -817,7 +817,6 @@ pub mod launcher_mod {
             self.additional_game.as_str()
         }
     }
-    use super::some_const::*;
     struct LaunchGame {
         account: LaunchAccount,
         java_path: String,
@@ -1210,20 +1209,7 @@ pub mod launcher_mod {
         }
     }
     /// 提供了Account登录的启动类模块，该类不是用来登录账号的，只是用来启动游戏时才用到的！
-    /// @function new_offline: 为新建了一个离线登录。如果你身处除中国以外的地方，请不要使用该新建函数。
-    /// @function new_offline_default: 为新建一个默认的玩家，仅需输入玩家名称，使用bukkit方式生成一个UUID。
-    /// @function new_microsoft为新建了一个微软登录。该登录方式适用于全世界。
-    /// @function new_thirdparty为新建了一个第三方登录。除非你信任该模块地址，否则你不能使用该新建函数。
-    /// @function new_thirdparty_default为新建了一个第三方登录。并且无需填入元数据，仅需多填入一个第三方登录网址。
-    /// @param name: 玩家登录名称
-    /// @param uuid: 玩家登录UUID（需要符合32位16进制字符）
-    /// @param access_token: 登录密钥（仅在使用微软、第三方时才用到。）
-    /// @param atype: 登录类型，该参数无需自己填
-    /// @param url: 第三方登录网址，该参数填入你的第三方登录域名。
-    /// @param base: 第三方登录元数据base64编码方案，如果你想使用第三方快速启动，
-    /// @param online: 仅用于标记目前你使用的哪种方式登录，不作为默认参数提供。
-    ///
-    ///
+    /// 
     /// 离线模式调用示例：LaunchAccount::new_offline("Steve", "1234567890abcdef1234567890abcdef");
     /// 或：LaunchAccount::new_offline_default("Steve");  // UUID会自动按照bukkit方式生成。
     /// 微软登录调用示例：LaunchAccount::new_microsoft("Steve", "1234567890abcdef1234567890abcdef", "<你的access token密钥>")
@@ -1240,12 +1226,29 @@ pub mod launcher_mod {
     ///                      "https://littleskin.cn/api/yggdrasil"")  # 此时皮肤站元数据base64编码会自动从api密钥获取。
     #[derive(Clone)]
     pub struct LaunchAccount {
+        /// 玩家登录名称
         name: String,
+        /// 玩家登录UUID
+        /// 
+        /// 该UUID必须符合32位16进制字符，否则会导致启动游戏失败！
         uuid: String,
+        /// 登录密钥
+        /// 
+        /// 该密钥仅在使用微软、第三方登录时才会用到
         access_token: String,
+        /// 登录类型
+        /// 
+        /// 该类型无需自己填写，仅用于标记登录类型
         atype: String,
+        /// 第三方登录元数据base64编码方案
+        /// 
+        /// 该参数仅在使用第三方登录时才会用到
         base: String,
+        /// 第三方登录网址
         url: String,
+        /// 登录类型标记
+        /// 
+        /// 该参数无需自己填写，仅用于标记登录类型
         online: i32,
     }
     impl LaunchAccount {
@@ -1268,6 +1271,7 @@ pub mod launcher_mod {
                 online,
             }
         }
+        /// 新建一个离线登录。如果你身处除中国以外的地方，请不要使用该新建函数。
         pub fn new_offline(name: &str, uuid: &str) -> Self {
             LaunchAccount::new(
                 name.to_string(),
@@ -1284,6 +1288,7 @@ pub mod launcher_mod {
             since = "0.0.8",
             note = "Please use main_mod generate_bukkit_uuid function."
         )]
+        /// 新建一个默认的玩家，仅需输入玩家名称，使用bukkit方式生成一个UUID。
         pub fn new_offline_default(name: &str) -> Self {
             let uuid = super::main_mod::generate_bukkit_uuid(name);
             LaunchAccount::new(
@@ -1296,6 +1301,7 @@ pub mod launcher_mod {
                 0,
             )
         }
+        /// 新建了一个微软登录。该登录方式适用于全世界。
         pub fn new_microsoft(name: &str, uuid: &str, access_token: &str) -> Self {
             LaunchAccount::new(
                 name.to_string(),
@@ -1307,6 +1313,7 @@ pub mod launcher_mod {
                 1,
             )
         }
+        /// 新建了一个第三方登录。除非你信任该模块地址，否则你不能使用该新建函数。
         pub fn new_thirdparty(
             name: &str,
             uuid: &str,
@@ -1329,6 +1336,7 @@ pub mod launcher_mod {
             since = "0.0.8",
             note = "Please login thirdparty in account_mod, and auto get base64 code by sync."
         )]
+        /// 新建了一个第三方登录。并且无需填入元数据，仅需多填入一个第三方登录网址。
         pub fn new_thirdparty_default(
             name: &str,
             uuid: &str,
