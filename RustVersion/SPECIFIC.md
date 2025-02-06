@@ -367,7 +367,7 @@ impl AccountLogin
 
 ## rust_lib::download_mod
 
-```
+```text
 以下函数均使用异步，望周知。
 以下五个函数均受到【rust_lib::some_var::DOWNLOAD_SOURCE】的影响，下载源为1时是官方下载源，为2时是BMCLAPI镜像。
 pub async fn get_mc_versions() -> Result<serde_json::Value, i32> 

@@ -12,7 +12,7 @@ pub mod launcher;
 pub use err::{MMCLLError, MMCLLResult};
 
 /// 部分常量值，在程序的任意位置均可直接调用。
-pub mod some_const {
+pub mod constants {
     pub const LAUNCHER_NANE: &str = "MMCLL"; //在使用此库时，请自觉将此值改成你的【<启动器名称>】。在使用默认方式启动时，会自动将【${launcher_name}】替换成该值。
     pub const LAUNCHER_VERSION: &str = "0.0.1-Alpha-12"; //在使用此库时，请自觉将此值改成你的【<启动器版本>】【可以加上Alpha、Beta、Pre三个值，因为在启动替换（${launcher_version}）时用到这个值。不过各位可以自行去函数put_arguments进行修改以适配该值。】
     pub const USER_AGENT: &str = "MMCLL/0.0.1.12"; //在使用此库时，请自觉将此值改成你的【<启动器名称>/<启动器版本>】。

@@ -1,10 +1,8 @@
-use super::some_const::*;
-use crate::{some_var::*, MMCLLResult};
+use crate::{MMCLLError, MMCLLResult};
 
 /// 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
 
 pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
-    use super::some_const::*;
     let v = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
         2 => "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json",
         _ => "https://piston-meta.mojang.com/mc/game/version_manifest.json",
