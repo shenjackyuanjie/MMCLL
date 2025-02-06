@@ -17,9 +17,9 @@ pub mod some_const {
     pub const LAUNCHER_VERSION: &str = "0.0.1-Alpha-12"; //在使用此库时，请自觉将此值改成你的【<启动器版本>】【可以加上Alpha、Beta、Pre三个值，因为在启动替换（${launcher_version}）时用到这个值。不过各位可以自行去函数put_arguments进行修改以适配该值。】
     pub const USER_AGENT: &str = "MMCLL/0.0.1.12"; //在使用此库时，请自觉将此值改成你的【<启动器名称>/<启动器版本>】。
 }
-/**
- * 部分全局变量值。在需要的时候可以使用with_borrow包裹住该变量以便使用，赋值和引用均可。但是你需要为你赋过的值负责！。
- */
+
+/// 部分全局变量值。在需要的时候可以使用with_borrow包裹住该变量以便使用，赋值和引用均可。但是你需要为你赋过的值负责！。
+
 pub mod some_var {
     use std::cell::RefCell;
     thread_local! {
@@ -31,14 +31,14 @@ pub mod some_var {
         pub static AUTHLIB_URL: RefCell<String> = RefCell::new(String::new());
     }
 }
-/**
- * 许多在启动时可能需要用到的静态函数。（无需初始化，仅需直接调用。）
- */
+
+/// 许多在启动时可能需要用到的静态函数。（无需初始化，仅需直接调用。）
+
 pub mod main_mod {
-    /**
-     * 从一个path获取外部文件。
-     * 此处使用了encoding转码，以防止有某些大聪明玩家使用GBK方式写文件
-     */
+
+    /// 从一个path获取外部文件。
+    /// 此处使用了encoding转码，以防止有某些大聪明玩家使用GBK方式写文件
+
     pub fn get_file(path: &str) -> Option<String> {
         use std::io::Read;
         let p = std::path::Path::new(path);
@@ -56,9 +56,9 @@ pub mod main_mod {
             }
         }
     }
-    /**
-     * 将Vec<u8>写出到文件
-     */
+
+    /// 将Vec<u8>写出到文件
+
     pub fn set_file_vecu8(path: &str, content: &[u8]) -> bool {
         let p = std::path::Path::new(path);
         if p.is_dir() {
@@ -84,15 +84,15 @@ pub mod main_mod {
             Err(_) => false,
         }
     }
-    /**
-     * 将内容写出到文件
-     */
+
+    /// 将内容写出到文件
+
     pub fn set_file(path: &str, content: String) -> bool {
         return set_file_vecu8(path, content.as_bytes());
     }
-    /**
-     * 删除文件
-     */
+
+    /// 删除文件
+
     pub fn delete_file(path: &str) -> bool {
         let p = std::path::Path::new(path);
         if !p.exists() || p.exists() && p.is_dir() {
@@ -103,9 +103,9 @@ pub mod main_mod {
             Err(_) => false,
         }
     }
-    /**
-     * 获取某一个文件的SHA1值
-     */
+
+    /// 获取某一个文件的SHA1值
+
     pub fn get_sha1(path: &str) -> Option<String> {
         let mut file = std::fs::File::open(path).ok()?;
         use crypto::digest::Digest;
@@ -122,10 +122,10 @@ pub mod main_mod {
         let hash = sha1.result_str();
         Some(hash)
     }
-    /**
-     * 将16进制字符串转换成Vec<u8>形式
-     * 例如【aabbcc】转成【[170, 187, 204]】
-     */
+
+    /// 将16进制字符串转换成Vec<u8>形式
+    /// 例如【aabbcc】转成【[170, 187, 204]】
+
     pub fn hex_decode(raw: &str) -> Option<Vec<u8>> {
         let mut res: Vec<u8> = Vec::new();
         if raw.len() % 2 != 0 {
@@ -145,10 +145,10 @@ pub mod main_mod {
         }
         Some(res.clone())
     }
-    /**
-     * 将16进制数组转成String形式
-     * 例如【[170, 187, 204]】转成【aabbcc】
-     */
+
+    /// 将16进制数组转成String形式
+    /// 例如【[170, 187, 204]】转成【aabbcc】
+
     pub fn hex_encode(raw: Vec<u8>) -> String {
         let mut res = String::new();
         for i in raw.into_iter() {
@@ -156,9 +156,9 @@ pub mod main_mod {
         }
         res.clone()
     }
-    /**
-     * 该函数目前仅适用于在离线登录时根据用户名生成一个唯一的UUID。
-     */
+
+    /// 该函数目前仅适用于在离线登录时根据用户名生成一个唯一的UUID。
+
     pub fn generate_bukkit_uuid(name: &str) -> String {
         use crypto::digest::Digest;
         let mut md5 = crypto::md5::Md5::new();
@@ -169,10 +169,10 @@ pub mod main_mod {
         res_hex[8] = (res_hex[8] & 0x3f) | 0x80;
         hex_encode(res_hex)
     }
-    /**
-     * 该函数目前仅适用于在初始化第三方登录时对该皮肤站元数据进行base64编码。
-     * 该函数已废弃，如果想获取元数据base64编码，请自行使用account_mod下的登录一次，即可直接异步获取。
-     */
+
+    /// 该函数目前仅适用于在初始化第三方登录时对该皮肤站元数据进行base64编码。
+    /// 该函数已废弃，如果想获取元数据base64编码，请自行使用account_mod下的登录一次，即可直接异步获取。
+
     #[allow(dead_code, deprecated)]
     #[deprecated(
         since = "0.0.8",
@@ -193,9 +193,9 @@ pub mod main_mod {
             base64::engine::general_purpose::STANDARD.encode(metadata.unwrap().replace("\\/", "/"));
         base
     }
-    /**
-     * 截取文件名
-     */
+
+    /// 截取文件名
+
     pub fn extract_file_name(file: &str) -> String {
         let rf = file.rfind("\\");
         if let None = rf {
@@ -209,9 +209,9 @@ pub mod main_mod {
         let versub = versub.unwrap();
         versub.to_string()
     }
-    /**
-     * 获取exe的位数（32位或64位）
-     */
+
+    /// 获取exe的位数（32位或64位）
+
     pub fn get_file_bit(file: String) -> Option<bool> {
         let path = std::path::Path::new(file.as_str());
         if !path.exists() || path.exists() && path.is_dir() {
@@ -224,9 +224,9 @@ pub mod main_mod {
             pelite::Wrap::T32(_) => Some(false),
         }
     }
-    /**
-     * 获取exe文件的版本号
-     */
+
+    /// 获取exe文件的版本号
+
     pub fn get_file_version(file: String) -> Option<String> {
         let path = std::path::Path::new(file.as_str());
         if !path.exists() || path.exists() && path.is_dir() {
@@ -244,9 +244,9 @@ pub mod main_mod {
             fixed_version.dwFileVersion.Patch.to_string()
         ))
     }
-    /**
-     * 通过正版用户名获取其UUID
-     */
+
+    /// 通过正版用户名获取其UUID
+
     pub fn name_to_uuid(name: &str) -> Option<String> {
         let url = format!("https://api.mojang.com/users/profiles/minecraft/{}", name);
         let url = super::account_mod::UrlMethod::new(url.as_str());

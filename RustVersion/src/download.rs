@@ -1,8 +1,8 @@
 use super::some_const::*;
 use crate::{some_var::*, MMCLLResult};
-/**
- * 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
- */
+
+/// 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
+
 pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
     use super::some_const::*;
     let v = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
@@ -19,10 +19,10 @@ pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
     let sj = serde_json::from_str::<serde_json::Value>(md.as_str()).map_err(|_| 2)?;
     Ok(sj.clone())
 }
-/**
- * 获取Forge版本的JSON（无论BMCLAPI还是Official，最终都会转成一种标准TLM格式：）
- * 具体格式请见：README.md
- */
+
+/// 获取Forge版本的JSON（无论BMCLAPI还是Official，最终都会转成一种标准TLM格式：）
+/// 具体格式请见：README.md
+
 pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i32> {
     if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
         let md = String::from_utf8(
@@ -178,9 +178,9 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
         Ok(res.clone())
     }
 }
-/**
- * 获取fabric版本的TLM实现版JSON
- */
+
+/// 获取fabric版本的TLM实现版JSON
+
 pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i32> {
     let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
         2 => {
@@ -244,9 +244,9 @@ pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i3
         Ok(res.clone())
     }
 }
-/**
- * 获取quilt版本的TLM实现版JSON
- */
+
+/// 获取quilt版本的TLM实现版JSON
+
 pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32> {
     let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
         2 => {
@@ -310,9 +310,9 @@ pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32
         Ok(res.clone())
     }
 }
-/**
- * 获取neoforge版本的TLM实现版JSON
- */
+
+/// 获取neoforge版本的TLM实现版JSON
+
 pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, i32> {
     if mcversion.eq("1.20.1") {
         let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
@@ -437,9 +437,9 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
         Ok(res.clone())
     }
 }
-/**
- * 这个函数是专门用来下载文件的，但是是私有的。
- */
+
+/// 这个函数是专门用来下载文件的，但是是私有的。
+
 async fn download_as_window(
     savepath: &str,
     download_url: &str,
@@ -491,18 +491,18 @@ async fn download_as_window(
         return Err(ERR_DOWNLOAD_FILE_EXISTS);
     }
 }
-/**
- * 一个有关下载任务的一个结构体，里面存了save_path、download_url、file_hash等字段
- */
+
+/// 一个有关下载任务的一个结构体，里面存了save_path、download_url、file_hash等字段
+
 #[derive(Clone)]
 struct DownloadTask {
     save_path: String,
     download_url: String,
     file_hash: String,
 }
-/**
- * 一个有关下载任务的实现，里面仅实现了contains，用于判断值是否相等。如果有任何一个值相等相等，则返回true~
- */
+
+/// 一个有关下载任务的实现，里面仅实现了contains，用于判断值是否相等。如果有任何一个值相等相等，则返回true~
+
 trait DownloadTaskImpl {
     fn contains(&self, has: &DownloadTask) -> bool;
 }
@@ -523,32 +523,31 @@ impl DownloadTaskImpl for Vec<DownloadTask> {
 pub struct DownloadMethod {
     savepath: String,
 }
-/**
- * 会自动匹配下载源，只需要提前将DOWNLOAD_SOURCE赋值完毕即可。
- * 1：官方源、2：BMCLAPI
- * 目前有且仅有上述两个源
- * 在下载自定义函数的时候，仅需使用tokio运行一次该函数即可。
- * 因为该库会自动调用最大线程进行切割文件并进行下载。
- * 当然，如果你想自己实现多线程下载的话，也可以调用UrlMethod的get_default_async自主实现多异步下载。、
- * 除了Rust语言有async异步以外，Python、Go等语言都有异步模型，因此均采用多异步而不是多线程进行下载。
- * 除了某些语言可能没有异步，例如Delphi/Object Pascal仅有的Task、Thread等。
- */
+
+/// 会自动匹配下载源，只需要提前将DOWNLOAD_SOURCE赋值完毕即可。
+/// 1：官方源、2：BMCLAPI
+/// 目前有且仅有上述两个源
+/// 在下载自定义函数的时候，仅需使用tokio运行一次该函数即可。
+/// 因为该库会自动调用最大线程进行切割文件并进行下载。
+/// 当然，如果你想自己实现多线程下载的话，也可以调用UrlMethod的get_default_async自主实现多异步下载。、
+/// 除了Rust语言有async异步以外，Python、Go等语言都有异步模型，因此均采用多异步而不是多线程进行下载。
+/// 除了某些语言可能没有异步，例如Delphi/Object Pascal仅有的Task、Thread等。
+
 impl DownloadMethod {
-    /**
-     * 新建一个下载实现。savepath根据需求填入
-     * 参见以下各种new实例
-     */
+    /// 新建一个下载实现。savepath根据需求填入
+    /// 参见以下各种new实例
+
     pub fn new(savepath: &str) -> Self {
         Self {
             savepath: savepath.to_string(),
         }
     }
-    /**
-     * 该函数使用的是安装Minecraft的类库。并且实时显示回显在callback里。
-     * savepath需要填入类似于.minecraft文件夹的位置。
-     * raw_json需要填入json源文件~
-     * callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
-     */
+
+    /// 该函数使用的是安装Minecraft的类库。并且实时显示回显在callback里。
+    /// savepath需要填入类似于.minecraft文件夹的位置。
+    /// raw_json需要填入json源文件~
+    /// callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
+
     pub async fn download_minecraft_libraries<T>(
         &self,
         raw_json: String,
@@ -813,12 +812,12 @@ impl DownloadMethod {
         }
         Ok(())
     }
-    /**
-     * 该函数使用的是安装Minecraft的资源文件。并且实时显示回显在callback里。
-     * savepath需要填入类似于.minecraft文件夹的位置。
-     * raw_json需要填入assets json源文件~（就是一堆hash的那个json）
-     * callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
-     */
+
+    /// 该函数使用的是安装Minecraft的资源文件。并且实时显示回显在callback里。
+    /// savepath需要填入类似于.minecraft文件夹的位置。
+    /// raw_json需要填入assets json源文件~（就是一堆hash的那个json）
+    /// callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
+
     pub async fn download_minecraft_assets<T>(
         &self,
         raw_json: String,

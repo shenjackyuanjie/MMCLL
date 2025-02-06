@@ -1,9 +1,7 @@
 //! 专注于启动游戏的模块，所有启动游戏的函数都可以在这里面找到！
 
 pub mod launcher_mod {
-    /**
-     * 此方法用于将json libraries里的name值转换为path。
-     */
+    /// 此方法用于将json libraries里的name值转换为path。
     pub fn convert_name_to_path(name: String) -> Option<String> {
         let mut name = name.clone();
         let suffix: String;
@@ -40,13 +38,11 @@ pub mod launcher_mod {
             None
         }
     }
-    /**
-     * 根据一个原版的json，准确的找到原版键值。（只能原版，如果不是原版，则必定返回None）
-     * 会按照clientVersion、patches->game|version、metadata->versions->releaseTime、id值进行找。
-     * 如果连最终的id值也不符合，则返回必定返回None！
-     * 但是最终的id值很可能不是代表着原版值，因为别的启动器很可能会修改文件夹的名字顺带把json里的id值也改了。
-     * 所以各位一定要记得做判断！如果想自定义一个类来启动的而不是用game_launch类启动的话。当然也可以用catch_unwind来捕捉panic也就对了！
-     */
+    /// 根据一个原版的json，准确的找到原版键值。（只能原版，如果不是原版，则必定返回None）
+    /// 会按照clientVersion、patches->game|version、metadata->versions->releaseTime、id值进行找。
+    /// 如果连最终的id值也不符合，则返回必定返回None！
+    /// 但是最终的id值很可能不是代表着原版值，因为别的启动器很可能会修改文件夹的名字顺带把json里的id值也改了。
+    /// 所以各位一定要记得做判断！如果想自定义一个类来启动的而不是用game_launch类启动的话。当然也可以用catch_unwind来捕捉panic也就对了！
     pub fn get_mc_vanilla_version(json: String) -> Option<String> {
         let root = serde_json::from_str::<serde_json::Value>(json.as_str()).ok()?;
         if let Some(e) = root["clientVersion"].as_str() {
@@ -113,11 +109,10 @@ pub mod launcher_mod {
         }
         None
     }
-    /**
-     * 解压任意文件到路径。
-     * 该函数并不会返回进度值，各位可以自行查看该函数并实现自己的回显进度的zip解压。
-     * 该函数目前仅会返回bool值，如果解压成功则返回true，反之如果里面出现任何错误，则直接返回false。
-     */
+
+    /// 解压任意文件到路径。
+    /// 该函数并不会返回进度值，各位可以自行查看该函数并实现自己的回显进度的zip解压。
+    /// 该函数目前仅会返回bool值，如果解压成功则返回true，反之如果里面出现任何错误，则直接返回false。
     pub fn unzip(zipfile: String, extfile: String) -> bool {
         let zip_path = std::path::Path::new(zipfile.as_str());
         let ext_path = std::path::Path::new(extfile.as_str());
@@ -171,9 +166,9 @@ pub mod launcher_mod {
         }
         true
     }
-    /**
-     * 删除文件夹中的所有文件，但是保留后缀为suffix的值。该函数用于解压natives时需要删掉除了dll以外的所有文件。
-     */
+
+    /// 删除文件夹中的所有文件，但是保留后缀为suffix的值。该函数用于解压natives时需要删掉除了dll以外的所有文件。
+
     pub fn delete_file_keep(dir_path: String, suffix: &str) -> bool {
         if dir_path.is_empty() {
             return false;
@@ -207,10 +202,10 @@ pub mod launcher_mod {
         }
         true
     }
-    /**
-     * 任何类都可以用的数字转换！
-     * 可以将字符串中的数字提取出来，或者是字符串中的非数字【字符】提取出来！
-     */
+
+    /// 任何类都可以用的数字转换！
+    /// 可以将字符串中的数字提取出来，或者是字符串中的非数字【字符】提取出来！
+
     pub fn extract_number(ext: String, isnum: bool) -> String {
         ext.chars()
             .filter(|&c| {
@@ -222,9 +217,9 @@ pub mod launcher_mod {
             })
             .collect::<String>()
     }
-    /**
-     * 根据找到的json中的inheritsFrom或者jar值，准确的找到另一个有关该原版的版本文件夹。
-     */
+
+    /// 根据找到的json中的inheritsFrom或者jar值，准确的找到另一个有关该原版的版本文件夹。
+
     pub fn get_mc_inherits_from(version_path: String, ioj: &str) -> Option<String> {
         let path = std::path::Path::new(version_path.as_str());
         if path.exists() && path.is_dir() {
@@ -265,9 +260,9 @@ pub mod launcher_mod {
         }
         None
     }
-    /**
-     * 从inheritsFrom键中找到的json当作原版json，并拼接上inheritsFrom键所在的json，将其合并成一个json！
-     */
+
+    /// 从inheritsFrom键中找到的json当作原版json，并拼接上inheritsFrom键所在的json，将其合并成一个json！
+
     pub fn replace_mc_inherits_from(mut raw_json: String, mut ins_json: String) -> Option<String> {
         fn return_some(k: &mut serde_json::Map<String, serde_json::Value>) -> Option<String> {
             Some(serde_json::to_string(&k).ok()?)
@@ -348,12 +343,12 @@ pub mod launcher_mod {
         }
         return_some(rt_ins)
     }
-    /**
-     * 从一个文件夹中根据suffix获取一个准确的文件。
-     * 其中当suffix为“.json”的时候逻辑可能会略有不同，请不要在意！
-     * suffix一般是以后缀为基础的。如果说不以后缀为基础，也可以用SHA1值做为基础。
-     * 目前仅支持SHA1和后缀，如果不以这两个，则很可能会返回None
-     */
+
+    /// 从一个文件夹中根据suffix获取一个准确的文件。
+    /// 其中当suffix为“.json”的时候逻辑可能会略有不同，请不要在意！
+    /// suffix一般是以后缀为基础的。如果说不以后缀为基础，也可以用SHA1值做为基础。
+    /// 目前仅支持SHA1和后缀，如果不以这两个，则很可能会返回None
+
     pub fn get_mc_real_path(version_path: String, suffix: &str) -> Option<String> {
         let path = std::path::Path::new(version_path.as_str());
         if path.exists() && path.is_dir() {
@@ -405,9 +400,9 @@ pub mod launcher_mod {
         }
         None
     }
-    /**
-     * 判断参数，以及拼接参数！适用于在整合参数时。
-     */
+
+    /// 判断参数，以及拼接参数！适用于在整合参数时。
+
     pub fn judge_arguments(args_json: String, key: &str) -> Option<Vec<String>> {
         let root = serde_json::from_str::<serde_json::Value>(args_json.as_str()).ok()?;
         let argu = root["arguments"][key].as_array()?;
@@ -431,10 +426,9 @@ pub mod launcher_mod {
         Some(res.clone())
     }
 
-    /**
-     * 单纯只是一个判断版本json里的libraries中，有rules的类库，是否allow在windows上。
-     * 需要填入一个serde_json的对象Map值！而且该对象必须已经从rules中取了出来！
-     */
+    /// 单纯只是一个判断版本json里的libraries中，有rules的类库，是否allow在windows上。
+    /// 需要填入一个serde_json的对象Map值！而且该对象必须已经从rules中取了出来！
+
     pub fn judge_mc_rules(root: &serde_json::Value) -> bool {
         let rules = root["rules"].as_array();
         if let None = rules {
@@ -469,9 +463,9 @@ pub mod launcher_mod {
         }
         true
     }
-    /**
-     * 获取MC类库（GetCPLibraries）
-     */
+
+    /// 获取MC类库（GetCPLibraries）
+
     pub fn get_mc_libs(raw_json: String, root_path: &str, version_path: &str) -> Option<String> {
         let mut res = String::new();
         let mut raw_list: Vec<String> = Vec::new();
@@ -591,9 +585,9 @@ pub mod launcher_mod {
         }
         Some(res)
     }
-    /**
-     * 解压natives。填入原json和根路径和版本路径。解压成功返回true，否则返回false。
-     */
+
+    /// 解压natives。填入原json和根路径和版本路径。解压成功返回true，否则返回false。
+
     pub fn unzip_native(raw_json: String, root_path: &str, version_path: &str) -> bool {
         let mut raw_list: Vec<String> = Vec::new();
         let mut no_list: Vec<String> = Vec::new();
@@ -704,25 +698,25 @@ pub mod launcher_mod {
             delete_file_keep(dir, ".dll")
         }
     }
-    /**
-     * 自定义启动设置类，各位可以调用！
-     * 其中，你需要保证以下两点最重要：
-     * root_path里面包含【assets、libraries】两个文件夹
-     * version_path里面包含【版本.json、版本.jar】两个文件
-     * 后期解压Native是默认解压到version_path路径下的！
-     * @param account: 账号类，参见LaunchAccount。
-     * @param java_path: Java路径
-     * @param root_path: MC根路径（用于查询assets、libraries）
-     * @param version_path: MC版本路径（用于查询MC元数据JSON和本体jar）
-     * @param game_path: MC游戏文件夹（直接用于存储游戏目录）
-     * @param window_height: 游戏窗口高度
-     * @param window_width: 游戏窗口宽度
-     * @param max_memory: 游戏最大内存
-     * @param custom_info: 游戏自定义信息（显示在游戏标题界面的右下角和游戏内f3的基本信息。）
-     * @param additional_jvm: 游戏额外JVM参数
-     * @param additional_game: 游戏额外game参数
-     * @param pre_launch_script: 启动前执行脚本
-     */
+
+    /// 自定义启动设置类，各位可以调用！
+    /// 其中，你需要保证以下两点最重要：
+    /// root_path里面包含【assets、libraries】两个文件夹
+    /// version_path里面包含【版本.json、版本.jar】两个文件
+    /// 后期解压Native是默认解压到version_path路径下的！
+    /// @param account: 账号类，参见LaunchAccount。
+    /// @param java_path: Java路径
+    /// @param root_path: MC根路径（用于查询assets、libraries）
+    /// @param version_path: MC版本路径（用于查询MC元数据JSON和本体jar）
+    /// @param game_path: MC游戏文件夹（直接用于存储游戏目录）
+    /// @param window_height: 游戏窗口高度
+    /// @param window_width: 游戏窗口宽度
+    /// @param max_memory: 游戏最大内存
+    /// @param custom_info: 游戏自定义信息（显示在游戏标题界面的右下角和游戏内f3的基本信息。）
+    /// @param additional_jvm: 游戏额外JVM参数
+    /// @param additional_game: 游戏额外game参数
+    /// @param pre_launch_script: 启动前执行脚本
+
     #[derive(Clone)]
     pub struct LaunchOption {
         account: LaunchAccount,

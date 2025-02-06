@@ -1,6 +1,5 @@
-/**
- * 登录账号的时需要用到的部分函数。需要初始化！
- */
+/// 登录账号的时需要用到的部分函数。需要初始化！
+
 pub mod account_mod {
     pub struct UrlMethod {
         url: String,
@@ -11,10 +10,10 @@ pub mod account_mod {
                 url: url.to_string(),
             }
         }
-        /**
-         * 以下三个为普通的网络请求，会阻塞主线程。
-         * 这里是post
-         */
+
+        /// 以下三个为普通的网络请求，会阻塞主线程。
+        /// 这里是post
+
         pub fn post(&self, key: &str, that: bool) -> Option<String> {
             let http = reqwest::blocking::Client::new();
             if that {
@@ -46,9 +45,9 @@ pub mod account_mod {
                 Some(res.clone())
             }
         }
-        /**
-         * 这里是get，但是有一个验证key
-         */
+
+        /// 这里是get，但是有一个验证key
+
         pub fn get(&self, key: &str) -> Option<String> {
             let http = reqwest::blocking::Client::new();
             let res = http
@@ -61,10 +60,10 @@ pub mod account_mod {
                 .ok()?;
             Some(res.clone())
         }
-        /**
-         * 这里是获取默认文本或二进制文件的。
-         * 返回值为Vec<u8>
-         */
+
+        /// 这里是获取默认文本或二进制文件的。
+        /// 返回值为Vec<u8>
+
         pub fn get_default(&self) -> Option<Vec<u8>> {
             let http = reqwest::blocking::Client::new();
             let res = http
@@ -76,9 +75,9 @@ pub mod account_mod {
                 .ok()?;
             Some(res.to_vec())
         }
-        /**
-         * 以下为异步的网络请求。
-         */
+
+        /// 以下为异步的网络请求。
+
         pub async fn post_async(&self, key: &str, that: bool) -> Option<String> {
             let http = reqwest::Client::new();
             if that {
@@ -205,36 +204,35 @@ pub mod account_mod {
         key: String,
     }
     impl AccountLogin {
-        /**
-         * 微软登录与外置登录均使用异步编写手法，各位可以使用tokio或futures运行。
-         * 该new函数需要传入一个client_id值，该值请自行查阅wiki.vg或者本仓库文档进行查阅。
-         */
+        /// 微软登录与外置登录均使用异步编写手法，各位可以使用tokio或futures运行。
+        /// 该new函数需要传入一个client_id值，该值请自行查阅wiki.vg或者本仓库文档进行查阅。
+
         pub fn new_ms(client_id: &str) -> Self {
             Self {
                 key: client_id.to_string(),
             }
         }
-        /**
-         * 外置登录需要填入一个服务器地址
-         * 该服务器地址需要精确到api/yggdrasil/以便直接进行post、get。
-         * 记住，服务器地址末尾必须不能有/符号，否则一定会出错！
-         * 示例填入：https://littleskin.cn/api/yggdrasil
-         */
+
+        /// 外置登录需要填入一个服务器地址
+        /// 该服务器地址需要精确到api/yggdrasil/以便直接进行post、get。
+        /// 记住，服务器地址末尾必须不能有/符号，否则一定会出错！
+        /// 示例填入：https://littleskin.cn/api/yggdrasil
+
         pub fn new_tp(server: &str) -> Self {
             Self {
                 key: server.to_string(),
             }
         }
-        /**
-         * 这里是获取用户代码的，返回两个值（用户代码、设备代码），各位需要自行使用浏览器打开【https://microsoft.com/link 】进行登录。
-         * 如果获取到了网址，但是在解析JSON时失败了，会直接panic掉！因此你应该需要一个catch_unwind来包围住这个函数。
-         * 剩余的json里的4个值，分别是：
-         * verification_uri: https://www.microsoft.com/link
-         * expires_in: 900
-         * interval: 5
-         * message: 中文信息
-         * 各位可以自行赋值，因此无需返回。
-         */
+
+        /// 这里是获取用户代码的，返回两个值（用户代码、设备代码），各位需要自行使用浏览器打开【https://microsoft.com/link 】进行登录。
+        /// 如果获取到了网址，但是在解析JSON时失败了，会直接panic掉！因此你应该需要一个catch_unwind来包围住这个函数。
+        /// 剩余的json里的4个值，分别是：
+        /// verification_uri: https://www.microsoft.com/link
+        /// expires_in: 900
+        /// interval: 5
+        /// message: 中文信息
+        /// 各位可以自行赋值，因此无需返回。
+
         pub async fn get_user_code(&self) -> Result<(String, String), i32> {
             const URL: &str =
                 "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode?mkt=zh-CN";
@@ -257,9 +255,9 @@ pub mod account_mod {
                 .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE)?;
             Ok((user_code.to_string(), device_code.to_string()))
         }
-        /**
-         * 登录的时候是刷新还是请求，这里是私有函数。
-         */
+
+        /// 登录的时候是刷新还是请求，这里是私有函数。
+
         async fn microsoft(
             &self,
             access_token: &str,
@@ -333,9 +331,9 @@ pub mod account_mod {
             result_account.set_refresh_token(refresh_token);
             Ok(result_account)
         }
-        /**
-         * 公开函数，用于登录微软账号。需要提供一个device_code。
-         */
+
+        /// 公开函数，用于登录微软账号。需要提供一个device_code。
+
         pub async fn login_microsoft(&self, device_code: String) -> Result<AccountResult, i32> {
             const MS_LIVE: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
             let k1 = format!("grant_type=urn:ietf:params:oauth:grant-type:device_code&client_id={}&device_code={}", self.key, device_code);
@@ -358,9 +356,9 @@ pub mod account_mod {
                 }
             }
         }
-        /**
-         * 刷新微软账号，需要提供一个refresh_token。
-         */
+
+        /// 刷新微软账号，需要提供一个refresh_token。
+
         pub async fn refresh_microsoft(&self, refresh_token: String) -> Result<AccountResult, i32> {
             const MS_LIVE: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
             let k1 = format!(
@@ -384,9 +382,9 @@ pub mod account_mod {
                 }
             }
         }
-        /**
-         * 外置登录，输入账号和密码，如果有client_token，则也填写，否则填String::new()即可。
-         */
+
+        /// 外置登录，输入账号和密码，如果有client_token，则也填写，否则填String::new()即可。
+
         pub async fn login_thirdparty(
             &self,
             username: String,
@@ -465,9 +463,9 @@ pub mod account_mod {
             }
             Ok(v)
         }
-        /**
-         * 刷新外置登录，填入access_token，如果有client_token则填，否则填String::new()即可。
-         */
+
+        /// 刷新外置登录，填入access_token，如果有client_token则填，否则填String::new()即可。
+
         pub async fn refresh_thirdparty(
             &self,
             access_token: String,
