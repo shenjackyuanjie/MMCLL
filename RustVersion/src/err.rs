@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MMCLLError {
-    UnknownError,
+    UnknownError(i32),
     LaunchAccountUsername,
     LaunchAccountUserUUID,
     LaunchAccountAccessToken,
@@ -52,6 +52,7 @@ pub enum MMCLLError {
     DownloadNotSupportSystem,
     DownloadFileDownloadFailure,
     DownloadDownloadFailure,
+    UnreachablePosition(i32),
 }
 
 impl std::error::Error for MMCLLError {}
@@ -59,7 +60,7 @@ impl std::error::Error for MMCLLError {}
 impl Display for MMCLLError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MMCLLError::UnknownError => write!(f, "未知错误"),
+            MMCLLError::UnknownError(id) => write!(f, "未知错误 编号: {}", id),
             MMCLLError::LaunchAccountUsername => write!(f, "账号名称格式错误"),
             MMCLLError::LaunchAccountUserUUID => write!(f, "账号UUID格式错误"),
             MMCLLError::LaunchAccountAccessToken => {
@@ -149,6 +150,17 @@ impl Display for MMCLLError {
             MMCLLError::DownloadNotSupportSystem => write!(f, "不支持的系统"),
             MMCLLError::DownloadFileDownloadFailure => write!(f, "文件下载失败"),
             MMCLLError::DownloadDownloadFailure => write!(f, "整体某一线程出现失误"),
+            MMCLLError::UnreachablePosition(i) => write!(f, "xphost认为不可达的位置 编号: {}", i),
+        }
+    }
+}
+
+impl From<i32> for MMCLLError {
+    fn from(value: i32) -> Self {
+        if value > 0 {
+            MMCLLError::UnreachablePosition(value)
+        } else {
+            MMCLLError::UnknownError(value)
         }
     }
 }

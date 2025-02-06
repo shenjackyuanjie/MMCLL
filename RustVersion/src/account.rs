@@ -233,7 +233,7 @@ impl AccountLogin {
     /// message: 中文信息
     /// 各位可以自行赋值，因此无需返回。
 
-    pub async fn get_user_code(&self) -> Result<(String, String), i32> {
+    pub async fn get_user_code(&self) -> MMCLLResult<(String, String)> {
         const URL: &str =
             "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode?mkt=zh-CN";
         let k1 = format!(
@@ -244,15 +244,15 @@ impl AccountLogin {
         let res = client
             .post_async(k1.as_str(), true)
             .await
-            .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE)?;
+            .ok_or(MMCLLError::LoginCannotGetUserCode)?;
         let login = serde_json::from_str::<serde_json::Value>(res.as_str())
-            .map_err(|_| ERR_LOGIN_CANNOT_GET_USERCODE)?;
+            .map_err(|_| MMCLLError::LoginCannotGetUserCode)?;
         let user_code = login["user_code"]
             .as_str()
-            .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE)?;
+            .ok_or(MMCLLError::LoginCannotGetUserCode)?;
         let device_code = login["device_code"]
             .as_str()
-            .ok_or(ERR_LOGIN_CANNOT_GET_USERCODE)?;
+            .ok_or(MMCLLError::LoginCannotGetUserCode)?;
         Ok((user_code.to_string(), device_code.to_string()))
     }
 
@@ -262,7 +262,7 @@ impl AccountLogin {
         &self,
         access_token: &str,
         refresh_token: &str,
-    ) -> Result<AccountResult, i32> {
+    ) -> MMCLLResult<AccountResult> {
         const XBOX_LIVE: &str = "https://user.auth.xboxlive.com/user/authenticate";
         const XSTS_LIVE: &str = "https://xsts.auth.xboxlive.com/xsts/authorize";
         const MC_LIVE: &str = "https://api.minecraftservices.com/authentication/login_with_xbox";
@@ -272,7 +272,7 @@ impl AccountLogin {
         let t2 = UrlMethod::new(XBOX_LIVE)
             .post_async(k2.as_str(), false)
             .await
-            .ok_or(ERR_LOGIN_XBOX_LIVE_INVALID)?;
+            .ok_or(MMCLLError::LoginXboxLiveInvalid)?;
         let j2 = serde_json::from_str::<serde_json::Value>(t2.as_str()).map_err(|_| 21)?;
         let w2 = j2["Token"].as_str().ok_or(22)?;
         let uhs_xbox = j2["DisplayClaims"]["xui"][0]["uhs"].as_str().ok_or(23)?;
@@ -285,27 +285,27 @@ impl AccountLogin {
         let t3 = UrlMethod::new(XSTS_LIVE)
             .post_async(k3.as_str(), false)
             .await
-            .ok_or(ERR_LOGIN_XSTS_LIVE_INVALID)?;
+            .ok_or(MMCLLError::LoginXstsLiveInvalid)?;
         let j3 = serde_json::from_str::<serde_json::Value>(t3.as_str()).map_err(|_| 24)?;
         let w3 = j3["Token"].as_str();
         if let None = w3 {
             let ww3 = j3["XErr"].as_i64().ok_or(25)?;
             return if ww3 == 2148916233 {
-                Err(ERR_LOGIN_XSTS_NO_XBOX)
+                Err(MMCLLError::LoginXstsNoXbox)
             } else if ww3 == 2148916235 {
-                Err(ERR_LOGIN_XSTS_ILLEGAL)
+                Err(MMCLLError::LoginXstsIllegal)
             } else if ww3 == 2148916236 || ww3 == 2148916237 {
-                Err(ERR_LOGIN_XSTS_NO_ADULT)
+                Err(MMCLLError::LoginXstsNoAdult)
             } else if ww3 == 2148916238 {
-                Err(ERR_LOGIN_XSTS_UNDER_18)
+                Err(MMCLLError::LoginXstsUnder18)
             } else {
-                Err(26)
+                Err(26.into())
             };
         }
         let w3 = w3.ok_or(27)?;
         let uhs_xsts = j3["DisplayClaims"]["xui"][0]["uhs"].as_str().ok_or(28)?;
         if uhs_xbox != uhs_xsts {
-            return Err(ERR_LOGIN_XBOX_XSTS_USERCODE);
+            return Err(MMCLLError::LoginXboxXstsUsercode);
         }
         let k4 = format!(
             "{}{}{}{}{}",
@@ -314,16 +314,16 @@ impl AccountLogin {
         let t4 = UrlMethod::new(MC_LIVE)
             .post_async(k4.as_str(), false)
             .await
-            .ok_or(ERR_LOGIN_XBOX_LIVE_INVALID)?;
+            .ok_or(MMCLLError::LoginXboxLiveInvalid)?;
         let j4 = serde_json::from_str::<serde_json::Value>(t4.as_str()).map_err(|_| 29)?;
         let w4 = j4["access_token"].as_str().ok_or(30)?;
         let t5 = UrlMethod::new(VERIFY)
             .get_async(w4)
             .await
-            .ok_or(ERR_LOGIN_MC_INVALID)?;
+            .ok_or(MMCLLError::LoginMcInvalid)?;
         let j5 = serde_json::from_str::<serde_json::Value>(t5.as_str()).map_err(|_| 31)?;
-        let name = j5["name"].as_str().ok_or(ERR_LOGIN_NO_MINECRAFT)?;
-        let uuid = j5["id"].as_str().ok_or(ERR_LOGIN_NO_MINECRAFT)?;
+        let name = j5["name"].as_str().ok_or(MMCLLError::LoginNoMinecraft)?;
+        let uuid = j5["id"].as_str().ok_or(MMCLLError::LoginNoMinecraft)?;
         result_account.set_name(name);
         result_account.set_uuid(uuid);
         result_account.set_access_token(w4);
@@ -333,7 +333,7 @@ impl AccountLogin {
 
     /// 公开函数，用于登录微软账号。需要提供一个device_code。
 
-    pub async fn login_microsoft(&self, device_code: String) -> Result<AccountResult, i32> {
+    pub async fn login_microsoft(&self, device_code: String) -> MMCLLResult<AccountResult> {
         const MS_LIVE: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
         let k1 = format!(
             "grant_type=urn:ietf:params:oauth:grant-type:device_code&client_id={}&device_code={}",
@@ -350,18 +350,18 @@ impl AccountLogin {
         } else {
             let e1 = j1["error_code"][0].as_i64().ok_or(5)?;
             if e1 == 70016 {
-                Err(ERR_LOGIN_DEVICE_CODE_INVALID)
+                Err(MMCLLError::LoginDeviceCodeInvalid)
             } else if e1 == 70020 {
-                Err(ERR_LOGIN_TIMEOUT)
+                Err(MMCLLError::LoginTimeout)
             } else {
-                Err(10)
+                Err(10.into())
             }
         }
     }
 
     /// 刷新微软账号，需要提供一个refresh_token。
 
-    pub async fn refresh_microsoft(&self, refresh_token: String) -> Result<AccountResult, i32> {
+    pub async fn refresh_microsoft(&self, refresh_token: String) -> MMCLLResult<AccountResult> {
         const MS_LIVE: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
         let k1 = format!(
             "grant_type=refresh_token&client_id={}&refresh_token={}",
@@ -378,9 +378,9 @@ impl AccountLogin {
         } else {
             let e1 = j1["error_code"][0].as_i64().ok_or(14)?;
             if e1 == 70011 {
-                Err(ERR_LOGIN_REFRESH_TOKEN_EXPIRE)
+                Err(MMCLLError::LoginRefreshTokenExpire)
             } else {
-                Err(15)
+                Err(15.into())
             }
         }
     }
@@ -392,16 +392,16 @@ impl AccountLogin {
         username: String,
         password: String,
         client_token: String,
-    ) -> Result<Vec<AccountResult>, i32> {
+    ) -> MMCLLResult<Vec<AccountResult>> {
         use base64::Engine;
         let base = UrlMethod::new(self.key.as_str());
         let base = base
             .get_default_async()
             .await
-            .ok_or(ERR_LOGIN_CANNOT_GET_METADATA)?;
-        let base = String::from_utf8(base).map_err(|_| ERR_LOGIN_CANNOT_GET_METADATA)?;
+            .ok_or(MMCLLError::LoginCannotGetMetadata)?;
+        let base = String::from_utf8(base).map_err(|_| MMCLLError::LoginCannotGetMetadata)?;
         if base.is_empty() {
-            return Err(ERR_LOGIN_CANNOT_GET_METADATA);
+            return Err(MMCLLError::LoginCannotGetMetadata);
         }
         let base = base64::engine::general_purpose::STANDARD.encode(base.replace("\\/", "/"));
         let res = format!("{}/authserver/authenticate", self.key.clone());
@@ -431,7 +431,7 @@ impl AccountLogin {
         let t1 = w1
             .post_async(k1.as_str(), false)
             .await
-            .ok_or(ERR_LOGIN_USERNAME_OR_PASSWORD)?;
+            .ok_or(MMCLLError::LoginUsernameOrPassword)?;
         let j1 = serde_json::from_str::<serde_json::Value>(t1.as_str()).map_err(|_| 46)?;
         let a1 = j1["accessToken"].as_str();
         if let None = a1 {
@@ -440,9 +440,9 @@ impl AccountLogin {
                 && err.contains("username")
                 && err.contains("password")
             {
-                Err(ERR_LOGIN_USERNAME_OR_PASSWORD)
+                Err(MMCLLError::LoginUsernameOrPassword)
             } else {
-                Err(48)
+                Err(48.into())
             };
         }
         let a1 = a1.ok_or(49)?;
@@ -472,7 +472,7 @@ impl AccountLogin {
         &self,
         access_token: String,
         client_token: String,
-    ) -> Result<AccountResult, i32> {
+    ) -> MMCLLResult<AccountResult> {
         let res = format!("{}/authserver/refresh", self.key.to_string());
         let k1: String;
         if client_token.is_empty() {
@@ -496,15 +496,15 @@ impl AccountLogin {
         let t1 = t1
             .post_async(k1.as_str(), false)
             .await
-            .ok_or(ERR_LOGIN_ACCESS_TOKEN_EXPIRE)?;
+            .ok_or(MMCLLError::LoginAccessTokenExpire)?;
         let j1 = serde_json::from_str::<serde_json::Value>(t1.as_str()).map_err(|_| 54)?;
         let ac = j1["accessToken"].as_str();
         if let None = ac {
             let err = j1["errorMessage"].as_str().ok_or(55)?;
             return if err.contains("invalid") && err.contains("token") {
-                Err(ERR_LOGIN_INVALID_ACCESS_TOKEN)
+                Err(MMCLLError::LoginAccessTokenExpire)
             } else {
-                Err(56)
+                Err(56.into())
             };
         }
         let ac = ac.ok_or(57)?;
