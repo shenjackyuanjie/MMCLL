@@ -1,7 +1,7 @@
 //! 专注于启动游戏的模块，所有启动游戏的函数都可以在这里面找到！
 
 use crate::{MMCLLError, MMCLLResult};
-use crate::{constants::{LAUNCHER_NANE, LAUNCHER_VERSION}};
+use crate::constants::{LAUNCHER_NANE, LAUNCHER_VERSION};
 
 /// 此方法用于将json libraries里的name值转换为path。
 pub fn convert_name_to_path(name: String) -> Option<String> {
@@ -857,11 +857,11 @@ impl LaunchGame {
         }
     }
     /// 启动游戏的私有函数，此处为检查是否有错。
-    fn check_error(&self) -> i32 {
+    fn check_error(&self) -> MMCLLResult<()> {
         let event_loop = winit::event_loop::EventLoop::new();
         let monitor = event_loop.available_monitors().next();
         if let None = monitor {
-            return ERR_UNKNOWN_ERROR;
+            return Err(MMCLLError::UnknownError(864));
         }
         let monitor = monitor.unwrap();
         let window_size = monitor.size();
@@ -871,38 +871,38 @@ impl LaunchGame {
         if self.account.get_online() == 0 {
             let regu = regex::Regex::new("^[0-9a-f]{32}$").unwrap();
             if !regu.is_match(self.account.get_uuid()) {
-                return ERR_LAUNCH_ACCOUNT_USERUUID;
+                return Err(MMCLLError::LaunchAccountUserUUID);
             }
             let regn = regex::Regex::new("^[a-zA-Z0-9]{3,16}$").unwrap();
             if !regn.is_match(self.account.get_name()) {
-                return ERR_LAUNCH_ACCOUNT_USERNAME;
+                return Err(MMCLLError::LaunchAccountUsername);
             }
         } else if self.account.get_online() == 1 {
-            let um = super::account_mod::UrlMethod::new(
+            let um = crate::account::UrlMethod::new(
                 "https://api.minecraftservices.com/minecraft/profile",
             );
             let ih = um.get(self.account.get_access_token());
             if let None = ih {
-                return ERR_LAUNCH_ACCOUNT_ACCESS_TOKEN;
+                return Err(MMCLLError::LaunchAccountAccessToken);
             }
             let json =
                 serde_json::from_str::<serde_json::Value>(ih.unwrap().replace("\\/", "/").as_str());
             if let Err(_) = json {
-                return ERR_UNKNOWN_ERROR;
+                return Err(MMCLLError::UnknownError(891));
             }
             let json = json.unwrap();
             let name = json["name"].as_str();
             if let None = name {
-                return ERR_LAUNCH_ACCOUNT_NO_LEGAL;
+                return Err(MMCLLError::LaunchAccountNoLegal);
             }
             let name = name.unwrap();
             let uuid = json["id"].as_str();
             if let None = uuid {
-                return ERR_LAUNCH_ACCOUNT_NO_LEGAL;
+                return Err(MMCLLError::LaunchAccountNoLegal);
             }
             let uuid = uuid.unwrap();
             if name != self.account.get_name() && uuid != self.account.get_name() {
-                return ERR_LAUNCH_ACCOUNT_ACCESS_TOKEN;
+                return Err(MMCLLError::LaunchAccountAccessToken);
             }
         } else if self.account.get_online() == 2 {
             if self.account.get_base().is_empty()
@@ -912,7 +912,7 @@ impl LaunchGame {
                 .unwrap()
                 .is_match(self.account.get_base())
             {
-                return ERR_LAUNCH_ACCOUNT_THIRDPARTY_BASE;
+                return Err(MMCLLError::LaunchAccountThirdpartyBase);
             }
             let t = format!("{}/authserver/validate", self.account.get_url());
             let pl = format!(
@@ -921,7 +921,7 @@ impl LaunchGame {
                 self.account.get_access_token(),
                 "\"}"
             );
-            let po = super::account_mod::UrlMethod::new(t.as_str());
+            let po = crate::account::UrlMethod::new(t.as_str());
             let pl = po.post(pl.as_str(), true);
             let ap = super::some_var::AUTHLIB_PATH.with_borrow(|e| e.clone());
             let ap = std::path::Path::new(ap.as_str());
