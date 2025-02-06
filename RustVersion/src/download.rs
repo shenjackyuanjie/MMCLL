@@ -1,26 +1,45 @@
-use crate::{some_var::*, MMCLLResult};
 use super::some_const::*;
-/** 
+use crate::{some_var::*, MMCLLResult};
+/**
  * 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
  */
 pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
     use super::some_const::*;
     let v = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-        2 => { "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json" }
-        _ => { "https://piston-meta.mojang.com/mc/game/version_manifest.json" }
+        2 => "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json",
+        _ => "https://piston-meta.mojang.com/mc/game/version_manifest.json",
     };
-    let md = String::from_utf8(super::account_mod::UrlMethod::new(v).get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 1)?;
+    let md = String::from_utf8(
+        super::account_mod::UrlMethod::new(v)
+            .get_default_async()
+            .await
+            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+    )
+    .map_err(|_| 1)?;
     let sj = serde_json::from_str::<serde_json::Value>(md.as_str()).map_err(|_| 2)?;
     Ok(sj.clone())
 }
-/** 
+/**
  * 获取Forge版本的JSON（无论BMCLAPI还是Official，最终都会转成一种标准TLM格式：）
  * 具体格式请见：README.md
  */
 pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i32> {
     if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
-        let md = String::from_utf8(super::account_mod::UrlMethod::new(format!("https://bmclapi2.bangbang93.com/forge/minecraft/{}", mcversion).as_str()).get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 3)?;
-        let sj = serde_json::from_str::<serde_json::Value>(md.as_str()).map_err(|_| ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT)?;
+        let md = String::from_utf8(
+            super::account_mod::UrlMethod::new(
+                format!(
+                    "https://bmclapi2.bangbang93.com/forge/minecraft/{}",
+                    mcversion
+                )
+                .as_str(),
+            )
+            .get_default_async()
+            .await
+            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+        )
+        .map_err(|_| 3)?;
+        let sj = serde_json::from_str::<serde_json::Value>(md.as_str())
+            .map_err(|_| ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT)?;
         let sj = sj.as_array().ok_or(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
@@ -29,8 +48,20 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
         for i in sj.into_iter() {
             let mcv = i["mcversion"].as_str().ok_or(4)?;
             let v = i["version"].as_str().ok_or(5)?;
-            let bch = if let Some(e) = i.get("branch") { if !e.is_null() { e.as_str().ok_or(6)? } else { "" } } else { "" };
-            let raw = if bch.is_empty() { format!("{}-{}", mcv, v) } else { format!("{}-{}-{}", mcv, v, bch) };
+            let bch = if let Some(e) = i.get("branch") {
+                if !e.is_null() {
+                    e.as_str().ok_or(6)?
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            };
+            let raw = if bch.is_empty() {
+                format!("{}-{}", mcv, v)
+            } else {
+                format!("{}-{}-{}", mcv, v, bch)
+            };
             let mut ins = false;
             for j in i["files"].as_array().ok_or(7)?.into_iter() {
                 let cg = j["category"].as_str().ok_or(8)?;
@@ -40,16 +71,31 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
                     break;
                 }
             }
-            obj.insert(String::from("mcversion"), serde_json::Value::String(mcv.to_string()));
-            obj.insert(String::from("version"), serde_json::Value::String(v.to_string()));
-            obj.insert(String::from("rawversion"), serde_json::Value::String(raw.clone()));
+            obj.insert(
+                String::from("mcversion"),
+                serde_json::Value::String(mcv.to_string()),
+            );
+            obj.insert(
+                String::from("version"),
+                serde_json::Value::String(v.to_string()),
+            );
+            obj.insert(
+                String::from("rawversion"),
+                serde_json::Value::String(raw.clone()),
+            );
             if ins {
                 if bch.is_empty() {
                     let ins = format!("https://bmclapi2.bangbang93.com/forge/download?mcversion={}&version={}&category=installer&format=jar", mcv, v);
-                    obj.insert(String::from("installer"), serde_json::Value::String(ins.clone()));
+                    obj.insert(
+                        String::from("installer"),
+                        serde_json::Value::String(ins.clone()),
+                    );
                 } else {
                     let ins = format!("https://bmclapi2.bangbang93.com/forge/download?mcversion={}&version={}&branch={}&category=installer&format=jar", mcv, v, bch);
-                    obj.insert(String::from("installer"), serde_json::Value::String(ins.clone()));
+                    obj.insert(
+                        String::from("installer"),
+                        serde_json::Value::String(ins.clone()),
+                    );
                 }
             } else {
                 obj.insert(String::from("installer"), serde_json::Value::Null);
@@ -62,7 +108,15 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
         }
         Ok(res.clone())
     } else {
-        let md = String::from_utf8(super::account_mod::UrlMethod::new("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml").get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 1)?;
+        let md = String::from_utf8(
+            super::account_mod::UrlMethod::new(
+                "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml",
+            )
+            .get_default_async()
+            .await
+            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+        )
+        .map_err(|_| 1)?;
         let mut sj = quick_xml::Reader::from_str(md.as_str());
         sj.config_mut().trim_text(true);
         let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();
@@ -75,39 +129,47 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
         let mut buf: Vec<u8> = Vec::new();
         loop {
             match sj.read_event_into(&mut buf) {
-                Ok(quick_xml::events::Event::Start(e)) => {
-                    match e.name().as_ref() {
-                        b"versioning" => versioning = true,
-                        b"versions" if versioning => versions = true,
-                        b"version" if versions => version = true,
-                        _ => ()
-                    }
-                }
-                Ok(quick_xml::events::Event::End(e)) => {
-                    match e.name().as_ref() {
-                        b"versioning" => versioning = false,
-                        b"versions" => versions = false,
-                        b"version" => version = false,
-                        _ => ()
-                    }
-                }
+                Ok(quick_xml::events::Event::Start(e)) => match e.name().as_ref() {
+                    b"versioning" => versioning = true,
+                    b"versions" if versioning => versions = true,
+                    b"version" if versions => version = true,
+                    _ => (),
+                },
+                Ok(quick_xml::events::Event::End(e)) => match e.name().as_ref() {
+                    b"versioning" => versioning = false,
+                    b"versions" => versions = false,
+                    b"version" => version = false,
+                    _ => (),
+                },
                 Ok(quick_xml::events::Event::Text(e)) => {
                     if versioning && versions && version {
                         let text = e.unescape().map_err(|_| 10)?.into_owned();
                         let sp = text.split('-').collect::<Vec<&str>>();
                         if (sp.len() == 2 || sp.len() == 3) && sp[0].eq(mcversion) {
-                            obj.insert(String::from("mcversion"), serde_json::Value::String(sp[0].to_string()));
-                            obj.insert(String::from("version"), serde_json::Value::String(sp[1].to_string()));
-                            obj.insert(String::from("rawversion"), serde_json::Value::String(text.clone()));
+                            obj.insert(
+                                String::from("mcversion"),
+                                serde_json::Value::String(sp[0].to_string()),
+                            );
+                            obj.insert(
+                                String::from("version"),
+                                serde_json::Value::String(sp[1].to_string()),
+                            );
+                            obj.insert(
+                                String::from("rawversion"),
+                                serde_json::Value::String(text.clone()),
+                            );
                             let ins = format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{}/forge-{}-installer.jar", text, text);
-                            obj.insert(String::from("installer"), serde_json::Value::String(ins.clone()));
+                            obj.insert(
+                                String::from("installer"),
+                                serde_json::Value::String(ins.clone()),
+                            );
                             rv.push(serde_json::Value::Object(obj.clone()));
                             obj.clear();
                         }
                     }
                 }
                 Ok(quick_xml::events::Event::Eof) => break,
-                _ => ()
+                _ => (),
             }
         }
         if rv.len() < 1 {
@@ -121,28 +183,58 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
  */
 pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i32> {
     let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-        2 => { format!("https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader/{}", mcversion) }
-        _ => { format!("https://meta.fabricmc.net/v2/versions/loader/{}", mcversion) }
+        2 => {
+            format!(
+                "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader/{}",
+                mcversion
+            )
+        }
+        _ => {
+            format!("https://meta.fabricmc.net/v2/versions/loader/{}", mcversion)
+        }
     };
     let url = super::account_mod::UrlMethod::new(meta.as_str());
-    let text = String::from_utf8(url.get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 12)?;
-    let ser = serde_json::from_str::<serde_json::Value>(text.as_str()).map_err(|_| ERR_DOWNLOAD_FABRIC_VERSION_NOT_FOUNT)?;
+    let text = String::from_utf8(
+        url.get_default_async()
+            .await
+            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+    )
+    .map_err(|_| 12)?;
+    let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
+        .map_err(|_| ERR_DOWNLOAD_FABRIC_VERSION_NOT_FOUNT)?;
     let mut res = serde_json::from_str::<serde_json::Value>("{\"fabric\":[]}").unwrap();
     let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
     let obj = obj.as_object_mut().unwrap();
     let rv = res.get_mut("fabric").unwrap().as_array_mut().unwrap();
     if !ser.is_array() {
         Err(ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)
-    }else{
+    } else {
         let ser = ser.as_array().unwrap();
         for i in ser.into_iter() {
             let c = i["loader"]["version"].as_str();
-            if let None = c { continue; }
+            if let None = c {
+                continue;
+            }
             let c = c.unwrap();
-            obj.insert(String::from("rawversion"), serde_json::Value::String(String::from(c)));
-            obj.insert(String::from("mcversion"), serde_json::Value::String(String::from(mcversion)));
-            obj.insert(String::from("version"), serde_json::Value::String(String::from(c)));
-            obj.insert(String::from("profile"), serde_json::Value::String(format!("https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json", mcversion, c)));
+            obj.insert(
+                String::from("rawversion"),
+                serde_json::Value::String(String::from(c)),
+            );
+            obj.insert(
+                String::from("mcversion"),
+                serde_json::Value::String(String::from(mcversion)),
+            );
+            obj.insert(
+                String::from("version"),
+                serde_json::Value::String(String::from(c)),
+            );
+            obj.insert(
+                String::from("profile"),
+                serde_json::Value::String(format!(
+                    "https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json",
+                    mcversion, c
+                )),
+            );
             rv.push(serde_json::Value::Object(obj.clone()));
             obj.clear();
         }
@@ -157,28 +249,58 @@ pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i3
  */
 pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32> {
     let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-        2 => { format!("https://bmclapi2.bangbang93.com/quilt-meta/v3/versions/loader/{}", mcversion) }
-        _ => { format!("https://meta.quiltmc.org/v3/versions/loader/{}", mcversion) }
+        2 => {
+            format!(
+                "https://bmclapi2.bangbang93.com/quilt-meta/v3/versions/loader/{}",
+                mcversion
+            )
+        }
+        _ => {
+            format!("https://meta.quiltmc.org/v3/versions/loader/{}", mcversion)
+        }
     };
     let url = super::account_mod::UrlMethod::new(meta.as_str());
-    let text = String::from_utf8(url.get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 13)?;
-    let ser = serde_json::from_str::<serde_json::Value>(text.as_str()).map_err(|_| ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)?;
+    let text = String::from_utf8(
+        url.get_default_async()
+            .await
+            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+    )
+    .map_err(|_| 13)?;
+    let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
+        .map_err(|_| ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)?;
     let mut res = serde_json::from_str::<serde_json::Value>("{\"quilt\":[]}").unwrap();
     let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
     let obj = obj.as_object_mut().unwrap();
     let rv = res.get_mut("quilt").unwrap().as_array_mut().unwrap();
     if ser.is_object() {
         Err(ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)
-    }else{
+    } else {
         let ser = ser.as_array().unwrap();
         for i in ser.into_iter() {
             let c = i["loader"]["version"].as_str();
-            if let None = c { continue; }
+            if let None = c {
+                continue;
+            }
             let c = c.unwrap();
-            obj.insert(String::from("rawversion"), serde_json::Value::String(String::from(c)));
-            obj.insert(String::from("mcversion"), serde_json::Value::String(String::from(mcversion)));
-            obj.insert(String::from("version"), serde_json::Value::String(String::from(c)));
-            obj.insert(String::from("profile"), serde_json::Value::String(format!("https://meta.quiltmc.org/v3/versions/loader/{}/{}/profile/json", mcversion, c)));
+            obj.insert(
+                String::from("rawversion"),
+                serde_json::Value::String(String::from(c)),
+            );
+            obj.insert(
+                String::from("mcversion"),
+                serde_json::Value::String(String::from(mcversion)),
+            );
+            obj.insert(
+                String::from("version"),
+                serde_json::Value::String(String::from(c)),
+            );
+            obj.insert(
+                String::from("profile"),
+                serde_json::Value::String(format!(
+                    "https://meta.quiltmc.org/v3/versions/loader/{}/{}/profile/json",
+                    mcversion, c
+                )),
+            );
             rv.push(serde_json::Value::Object(obj.clone()));
             obj.clear();
         }
@@ -198,8 +320,14 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             _ => { "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/forge".to_string() }
         };
         let url = super::account_mod::UrlMethod::new(meta.as_str());
-        let text = String::from_utf8(url.get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 14)?;
-        let ser = serde_json::from_str::<serde_json::Value>(text.as_str()).map_err(|_| ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT)?;
+        let text = String::from_utf8(
+            url.get_default_async()
+                .await
+                .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+        )
+        .map_err(|_| 14)?;
+        let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
+            .map_err(|_| ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"neoforge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
         let obj = obj.as_object_mut().unwrap();
@@ -210,13 +338,24 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             let spn = name.split('-').collect::<Vec<&str>>();
             if spn.len() == 2 {
                 let spl = spn[0].split(".").collect::<Vec<&str>>();
-                if spl.len() != 3 { continue; }
+                if spl.len() != 3 {
+                    continue;
+                }
                 let mv = spn[0].to_string();
                 let v = spn[1].to_string();
                 let n = name.to_string();
-                obj.insert(String::from("rawversion"), serde_json::Value::String(n.clone()));
-                obj.insert(String::from("mcversion"), serde_json::Value::String(mv.clone()));
-                obj.insert(String::from("version"), serde_json::Value::String(v.clone()));
+                obj.insert(
+                    String::from("rawversion"),
+                    serde_json::Value::String(n.clone()),
+                );
+                obj.insert(
+                    String::from("mcversion"),
+                    serde_json::Value::String(mv.clone()),
+                );
+                obj.insert(
+                    String::from("version"),
+                    serde_json::Value::String(v.clone()),
+                );
                 obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
                     format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
                 } else {
@@ -236,8 +375,14 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             _ => { "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge".to_string() }
         };
         let url = super::account_mod::UrlMethod::new(meta.as_str());
-        let text = String::from_utf8(url.get_default_async().await.ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?).map_err(|_| 14)?;
-        let ser = serde_json::from_str::<serde_json::Value>(text.as_str()).map_err(|_| ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT)?;
+        let text = String::from_utf8(
+            url.get_default_async()
+                .await
+                .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+        )
+        .map_err(|_| 14)?;
+        let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
+            .map_err(|_| ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"neoforge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
         let obj = obj.as_object_mut().unwrap();
@@ -248,16 +393,35 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             let srn = name.split("-").collect::<Vec<&str>>();
             let sname = srn[0];
             let spm = mcversion.split(".").collect::<Vec<&str>>();
-            let rpm = if spm.len() == 3 { format!("{}.{}", spm[1], spm[2]) } else if spm.len() == 2 { format!("{}.0", spm[1]) } else { continue; };
+            let rpm = if spm.len() == 3 {
+                format!("{}.{}", spm[1], spm[2])
+            } else if spm.len() == 2 {
+                format!("{}.0", spm[1])
+            } else {
+                continue;
+            };
             let spn = sname.split(".").collect::<Vec<&str>>();
-            let rpn = if spn.len() >= 2 { format!("{}.{}", spn[0], spn[1]) } else { continue; };
+            let rpn = if spn.len() >= 2 {
+                format!("{}.{}", spn[0], spn[1])
+            } else {
+                continue;
+            };
             if rpm.eq(rpn.as_str()) {
                 let n = name.to_string();
                 let mv = mcversion.to_string();
                 let v = sname.to_string();
-                obj.insert(String::from("rawversion"), serde_json::Value::String(n.clone()));
-                obj.insert(String::from("mcversion"), serde_json::Value::String(mv.clone()));
-                obj.insert(String::from("version"), serde_json::Value::String(v.clone()));
+                obj.insert(
+                    String::from("rawversion"),
+                    serde_json::Value::String(n.clone()),
+                );
+                obj.insert(
+                    String::from("mcversion"),
+                    serde_json::Value::String(mv.clone()),
+                );
+                obj.insert(
+                    String::from("version"),
+                    serde_json::Value::String(v.clone()),
+                );
                 obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
                     format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
                 } else {
@@ -276,35 +440,54 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
 /**
  * 这个函数是专门用来下载文件的，但是是私有的。
  */
-async fn download_as_window(savepath: &str, download_url: &str, file_hash: &str) -> Result<(), i32> {
+async fn download_as_window(
+    savepath: &str,
+    download_url: &str,
+    file_hash: &str,
+) -> Result<(), i32> {
     let file_path = std::path::Path::new(savepath);
     if file_path.exists() {
-        if file_hash.is_empty() { return Err(ERR_DOWNLOAD_FILE_EXISTS); }
+        if file_hash.is_empty() {
+            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+        }
         let real_file_hash = crate::rust_lib::main_mod::get_sha1(savepath);
-        if let None = real_file_hash { return Err(ERR_DOWNLOAD_FILE_EXISTS); }
+        if let None = real_file_hash {
+            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+        }
         let real_file_hash = real_file_hash.unwrap();
         if real_file_hash.ne(file_hash) {
             if !crate::rust_lib::main_mod::delete_file(savepath) {
                 return Err(ERR_DOWNLOAD_FILE_EXISTS);
             }
-        }else { return Err(ERR_DOWNLOAD_FILE_EXISTS); }
-    }else{
+        } else {
+            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+        }
+    } else {
         let parent = file_path.parent();
-        if let None = parent { return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR); }
+        if let None = parent {
+            return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR);
+        }
         let rt = std::fs::create_dir_all(file_path.parent().unwrap());
-        if let Err(_) = rt { return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR); }
+        if let Err(_) = rt {
+            return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR);
+        }
     }
-    if download_url.contains("linux") || download_url.contains("macos") || download_url.contains("osx") {
+    if download_url.contains("linux")
+        || download_url.contains("macos")
+        || download_url.contains("osx")
+    {
         return Err(ERR_DOWNLOAD_NOT_SUPPORT_SYSTEM);
     }
     let url = super::account_mod::UrlMethod::new(download_url);
     let url = url.get_default_async().await;
-    if let None = url { return Err(ERR_DOWNLOAD_FILE_DOWNLOAD_FAILURE); }
+    if let None = url {
+        return Err(ERR_DOWNLOAD_FILE_DOWNLOAD_FAILURE);
+    }
     let url = url.unwrap();
     if !file_path.exists() {
         super::main_mod::set_file_vecu8(savepath, &url);
         Ok(())
-    }else{
+    } else {
         return Err(ERR_DOWNLOAD_FILE_EXISTS);
     }
 }
@@ -326,7 +509,10 @@ trait DownloadTaskImpl {
 impl DownloadTaskImpl for Vec<DownloadTask> {
     fn contains(&self, x: &DownloadTask) -> bool {
         for i in self.iter() {
-            if i.download_url.eq(x.download_url.as_str()) || i.file_hash.eq(x.file_hash.as_str()) || i.save_path.eq(x.save_path.as_str()) {
+            if i.download_url.eq(x.download_url.as_str())
+                || i.file_hash.eq(x.file_hash.as_str())
+                || i.save_path.eq(x.save_path.as_str())
+            {
                 return true;
             }
         }
@@ -363,16 +549,25 @@ impl DownloadMethod {
      * raw_json需要填入json源文件~
      * callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
      */
-    pub async fn download_minecraft_libraries<T>(&self, raw_json: String, callback: T) -> Result<(), i32> 
+    pub async fn download_minecraft_libraries<T>(
+        &self,
+        raw_json: String,
+        callback: T,
+    ) -> Result<(), i32>
     where
-        T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static
+        T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static,
     {
-        let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str()).map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
-        let libs  = libs["libraries"].as_array().ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+        let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str())
+            .map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+        let libs = libs["libraries"]
+            .as_array()
+            .ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
         let mut lib_vec: Vec<DownloadTask> = Vec::new();
         for m in 0..libs.len() {
             let i = libs[m].clone();
-            if !super::launcher_mod::judge_mc_rules(&i.clone()) { continue; }
+            if !super::launcher_mod::judge_mc_rules(&i.clone()) {
+                continue;
+            }
             let dn = i.get("downloads");
             if let Some(dn) = dn {
                 let da = dn.get("artifact");
@@ -383,10 +578,20 @@ impl DownloadMethod {
                         if let Some(sha) = sha {
                             let url = da["url"].as_str();
                             if let Some(url) = url {
-                                let sapth = self.savepath.clone() + "\\libraries\\" + sap.replace("/", "\\").as_str();
+                                let sapth = self.savepath.clone()
+                                    + "\\libraries\\"
+                                    + sap.replace("/", "\\").as_str();
                                 lib_vec.push(DownloadTask {
                                     save_path: sapth.clone(),
-                                    download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { url.to_string() } else { url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/maven/") },
+                                    download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1
+                                    {
+                                        url.to_string()
+                                    } else {
+                                        url.replace(
+                                            "https://libraries.minecraft.net/",
+                                            "https://bmclapi2.bangbang93.com/maven/",
+                                        )
+                                    },
                                     file_hash: sha.to_string(),
                                 });
                             }
@@ -403,10 +608,21 @@ impl DownloadMethod {
                             if let Some(sha) = sha {
                                 let url = dnw["url"].as_str();
                                 if let Some(url) = url {
-                                    let sapth = self.savepath.clone() + "\\libraries\\" + sap.replace("/", "\\").as_str();
+                                    let sapth = self.savepath.clone()
+                                        + "\\libraries\\"
+                                        + sap.replace("/", "\\").as_str();
                                     lib_vec.push(DownloadTask {
                                         save_path: sapth.clone(),
-                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { url.to_string() } else { url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/maven/") },
+                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone())
+                                            == 1
+                                        {
+                                            url.to_string()
+                                        } else {
+                                            url.replace(
+                                                "https://libraries.minecraft.net/",
+                                                "https://bmclapi2.bangbang93.com/maven/",
+                                            )
+                                        },
                                         file_hash: sha.to_string(),
                                     });
                                 }
@@ -421,10 +637,21 @@ impl DownloadMethod {
                             if let Some(sha) = sha {
                                 let url = dnwx["url"].as_str();
                                 if let Some(url) = url {
-                                    let sapth = self.savepath.clone() + "\\libraries\\" + sap.replace("/", "\\").as_str();
+                                    let sapth = self.savepath.clone()
+                                        + "\\libraries\\"
+                                        + sap.replace("/", "\\").as_str();
                                     lib_vec.push(DownloadTask {
                                         save_path: sapth.clone(),
-                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { url.to_string() } else { url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/maven/") },
+                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone())
+                                            == 1
+                                        {
+                                            url.to_string()
+                                        } else {
+                                            url.replace(
+                                                "https://libraries.minecraft.net/",
+                                                "https://bmclapi2.bangbang93.com/maven/",
+                                            )
+                                        },
                                         file_hash: sha.to_string(),
                                     });
                                 }
@@ -434,43 +661,89 @@ impl DownloadMethod {
                 }
             }
             let name = i["name"].as_str();
-            if let None = name { continue; }
+            if let None = name {
+                continue;
+            }
             let mut name = name.unwrap().to_string();
-            if name.is_empty() { continue; }
-            if name.contains("linux") || name.contains("macos") || name.contains("osx") || name.contains("x86") { continue; }
+            if name.is_empty() {
+                continue;
+            }
+            if name.contains("linux")
+                || name.contains("macos")
+                || name.contains("osx")
+                || name.contains("x86")
+            {
+                continue;
+            }
             let real_native = i["natives"]["windows"].as_str();
-            if let Some(e) = real_native { name = format!("{}:{}", name, e); }
+            if let Some(e) = real_native {
+                name = format!("{}:{}", name, e);
+            }
             let real_path = super::launcher_mod::convert_name_to_path(name.to_string());
-            if let None = real_path { continue; }
+            if let None = real_path {
+                continue;
+            }
             let real_path = real_path.unwrap();
             let real_save = format!("{}\\libraries\\{}", self.savepath, real_path);
             let real_url = if let Some(e) = i["url"].as_str() {
-                if !e.ends_with("/") { format!("{}/{}", e, real_path.replace("\\", "/")) }
-                else { format!("{}{}", e, real_path.replace("\\", "/")) }
-            } else { format!("{}/{}", if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { "https://libraries.minecraft.net" } else { "https://bmclapi2.bangbang93.com/maven" }, real_path.replace("\\", "/")) };
-            let sha1 = if let Some(e) = i["sha1"].as_str() { e } else { "" };
+                if !e.ends_with("/") {
+                    format!("{}/{}", e, real_path.replace("\\", "/"))
+                } else {
+                    format!("{}{}", e, real_path.replace("\\", "/"))
+                }
+            } else {
+                format!(
+                    "{}/{}",
+                    if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 {
+                        "https://libraries.minecraft.net"
+                    } else {
+                        "https://bmclapi2.bangbang93.com/maven"
+                    },
+                    real_path.replace("\\", "/")
+                )
+            };
+            let sha1 = if let Some(e) = i["sha1"].as_str() {
+                e
+            } else {
+                ""
+            };
             let t = DownloadTask {
                 save_path: real_save.clone(),
                 download_url: real_url.clone(),
                 file_hash: sha1.to_string(),
             };
-            if lib_vec.contains(&t) { continue; }
+            if lib_vec.contains(&t) {
+                continue;
+            }
             lib_vec.push(t);
         }
         //以上为lib_vec赋值了，现在lib_vec里面存放了所有来自libraries的DownloadTask实例~
         let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| e.clone());
-        let bgt = if bgt > 256 || bgt < 1 { 32 as usize } else { bgt as usize }; 
-        let bgt = if bgt < lib_vec.len() { bgt } else { lib_vec.len() };
+        let bgt = if bgt > 256 || bgt < 1 {
+            32 as usize
+        } else {
+            bgt as usize
+        };
+        let bgt = if bgt < lib_vec.len() {
+            bgt
+        } else {
+            lib_vec.len()
+        };
         let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
         let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(bgt));
         for (index, lib) in lib_vec.into_iter().enumerate() {
             let semaphore = semaphore.clone();
             let permit = semaphore.acquire_owned().await.unwrap();
-            let task = tokio::spawn( async move {
-                let f = download_as_window(lib.save_path.as_str(), lib.download_url.as_str(), lib.file_hash.as_str()).await;
+            let task = tokio::spawn(async move {
+                let f = download_as_window(
+                    lib.save_path.as_str(),
+                    lib.download_url.as_str(),
+                    lib.file_hash.as_str(),
+                )
+                .await;
                 if let Err(e) = f {
                     callback(lib.download_url, index, e);
-                }else{
+                } else {
                     callback(lib.download_url, index, OK);
                 }
                 drop(permit);
@@ -546,12 +819,19 @@ impl DownloadMethod {
      * raw_json需要填入assets json源文件~（就是一堆hash的那个json）
      * callback填一个闭包，用于回显下载进度。（闭包第一个值是下载路径，第二个值是下载进度，第三个值是下载是否失败。）
      */
-    pub async fn download_minecraft_assets<T>(&self, raw_json: String, callback: T) -> Result<(), i32> 
+    pub async fn download_minecraft_assets<T>(
+        &self,
+        raw_json: String,
+        callback: T,
+    ) -> Result<(), i32>
     where
-        T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static
+        T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static,
     {
-        let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str()).map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
-        let libs  = libs["objects"].as_object().ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+        let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str())
+            .map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+        let libs = libs["objects"]
+            .as_object()
+            .ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
         let mut lib_vec: Vec<DownloadTask> = Vec::new();
         for i in libs.keys() {
             let dh = libs[i]["hash"].as_str();
@@ -559,29 +839,46 @@ impl DownloadMethod {
                 let sub = &dh[0..2];
                 lib_vec.push(DownloadTask {
                     save_path: format!("{}\\assets\\objects\\{}\\{}", self.savepath, sub, dh),
-                    download_url: format!("{}/{}/{}", 
-                        if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 { 
-                            "https://resources.download.minecraft.net" 
-                        } else { 
-                            "https://bmclapi2.bangbang93.com/assets" 
-                        }, sub, dh),
+                    download_url: format!(
+                        "{}/{}/{}",
+                        if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 {
+                            "https://resources.download.minecraft.net"
+                        } else {
+                            "https://bmclapi2.bangbang93.com/assets"
+                        },
+                        sub,
+                        dh
+                    ),
                     file_hash: dh.to_string(),
                 });
             }
         }
         let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| e.clone());
-        let bgt = if bgt > 256 || bgt < 1 { 32 as usize } else { bgt as usize }; 
-        let bgt = if bgt < lib_vec.len() { bgt } else { lib_vec.len() };
+        let bgt = if bgt > 256 || bgt < 1 {
+            32 as usize
+        } else {
+            bgt as usize
+        };
+        let bgt = if bgt < lib_vec.len() {
+            bgt
+        } else {
+            lib_vec.len()
+        };
         let mut tasks: Vec<tokio::task::JoinHandle<()>> = Vec::new();
         let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(bgt));
         for (index, lib) in lib_vec.into_iter().enumerate() {
             let semaphore = semaphore.clone();
             let permit = semaphore.acquire_owned().await.unwrap();
-            let task = tokio::spawn( async move {
-                let f = download_as_window(lib.save_path.as_str(), lib.download_url.as_str(), lib.file_hash.as_str()).await;
+            let task = tokio::spawn(async move {
+                let f = download_as_window(
+                    lib.save_path.as_str(),
+                    lib.download_url.as_str(),
+                    lib.file_hash.as_str(),
+                )
+                .await;
                 if let Err(e) = f {
                     callback(lib.download_url, index, e);
-                }else{
+                } else {
                     callback(lib.download_url, index, OK);
                 }
                 drop(permit);
