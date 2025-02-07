@@ -38,7 +38,9 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
         .map_err(|_| 3)?;
         let sj = serde_json::from_str::<serde_json::Value>(md.as_str())
             .map_err(|_| MMCLLError::DownloadForgeVersionNotFound)?;
-        let sj = sj.as_array().ok_or(MMCLLError::DownloadForgeVersionNotFound)?;
+        let sj = sj
+            .as_array()
+            .ok_or(MMCLLError::DownloadForgeVersionNotFound)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
         let obj = obj.as_object_mut().unwrap();
@@ -171,7 +173,7 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
             }
         }
         if rv.len() < 1 {
-            return Err(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT);
+            return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
     }
@@ -191,7 +193,7 @@ pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i3
             format!("https://meta.fabricmc.net/v2/versions/loader/{}", mcversion)
         }
     };
-    let url = super::account_mod::UrlMethod::new(meta.as_str());
+    let url = crate::account::UrlMethod::new(meta.as_str());
     let text = String::from_utf8(
         url.get_default_async()
             .await

@@ -1,7 +1,7 @@
 //! 登录账号的时需要用到的部分函数。需要初始化！
 
-use crate::{MMCLLError, MMCLLResult};
 use crate::constants::USER_AGENT;
+use crate::{MMCLLError, MMCLLResult};
 
 pub struct UrlMethod {
     url: String,

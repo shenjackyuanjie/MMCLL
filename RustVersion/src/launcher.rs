@@ -1,7 +1,7 @@
 //! 专注于启动游戏的模块，所有启动游戏的函数都可以在这里面找到！
 
-use crate::{MMCLLError, MMCLLResult};
 use crate::constants::{LAUNCHER_NANE, LAUNCHER_VERSION};
+use crate::{MMCLLError, MMCLLResult};
 
 /// 此方法用于将json libraries里的name值转换为path。
 pub fn convert_name_to_path(name: String) -> Option<String> {
@@ -751,11 +751,7 @@ impl LaunchOption {
             window_width: 854,
             min_memory: 256,
             max_memory: 4096,
-            custom_info: format!(
-                "{}-{}",
-                LAUNCHER_NANE,
-                LAUNCHER_VERSION
-            ),
+            custom_info: format!("{}-{}", LAUNCHER_NANE, LAUNCHER_VERSION),
             additional_jvm: String::new(),
             additional_game: String::new(),
         }
@@ -974,7 +970,9 @@ impl LaunchGame {
     ) -> MMCLLResult<Vec<String>> {
         let root = serde_json::from_str::<serde_json::Value>(real_json.as_str())
             .map_err(|_| MMCLLError::GameRawJsonStructure)?;
-        let mcid = root["id"].as_str().ok_or(MMCLLError::GameRawJsonStructure)?;
+        let mcid = root["id"]
+            .as_str()
+            .ok_or(MMCLLError::GameRawJsonStructure)?;
         let main_class = root["mainClass"]
             .as_str()
             .ok_or(MMCLLError::GameRawJsonStructure)?;
@@ -1053,7 +1051,8 @@ impl LaunchGame {
             }
         } else {
             result.extend(
-                judge_arguments(real_json.clone(), "game").ok_or(MMCLLError::GameRawJsonStructure)?,
+                judge_arguments(real_json.clone(), "game")
+                    .ok_or(MMCLLError::GameRawJsonStructure)?,
             );
         }
         if !self.additional_game.contains("--fullScreen") {
@@ -1202,7 +1201,6 @@ impl LaunchGame {
         Ok(())
     }
 }
-
 
 /// 提供了Account登录的启动类模块，该类不是用来登录账号的，只是用来启动游戏时才用到的！
 ///
