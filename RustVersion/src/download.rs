@@ -1,12 +1,15 @@
+use crate::some_var::is_download_from_official;
 use crate::{MMCLLError, MMCLLResult};
-use crate::some_var::DOWNLOAD_SOURCE;
+
+use serde_json::json;
 
 /// 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
 
 pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
-    let v = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-        2 => "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json",
-        _ => "https://piston-meta.mojang.com/mc/game/version_manifest.json",
+    let v = if is_download_from_official() {
+        "https://piston-meta.mojang.com/mc/game/version_manifest.json"
+    } else {
+        "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json"
     };
     let md = String::from_utf8(
         crate::account::UrlMethod::new(v)
@@ -21,9 +24,8 @@ pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
 
 /// 获取Forge版本的JSON（无论BMCLAPI还是Official，最终都会转成一种标准TLM格式：）
 /// 具体格式请见：README.md
-
 pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Value> {
-    if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
+    if !is_download_from_official() {
         let md = String::from_utf8(
             crate::account::UrlMethod::new(
                 format!(
@@ -42,72 +44,61 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
         let sj = sj
             .as_array()
             .ok_or(MMCLLError::DownloadForgeVersionNotFound)?;
-        let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();
-        let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
-        let obj = obj.as_object_mut().unwrap();
-        let rv = res.get_mut("forge").unwrap().as_array_mut().unwrap();
-        for i in sj.into_iter() {
-            let mcv = i["mcversion"].as_str().ok_or(4)?;
-            let v = i["version"].as_str().ok_or(5)?;
-            let bch = if let Some(e) = i.get("branch") {
-                if !e.is_null() {
-                    e.as_str().ok_or(6)?
-                } else {
-                    ""
-                }
-            } else {
-                ""
-            };
-            let raw = if bch.is_empty() {
-                format!("{}-{}", mcv, v)
-            } else {
-                format!("{}-{}-{}", mcv, v, bch)
-            };
-            let mut ins = false;
-            for j in i["files"].as_array().ok_or(7)?.into_iter() {
-                let cg = j["category"].as_str().ok_or(8)?;
-                let fm = j["format"].as_str().ok_or(9)?;
-                if cg.eq("installer") && fm.eq("jar") {
-                    ins = true;
-                    break;
-                }
-            }
-            obj.insert(
-                String::from("mcversion"),
-                serde_json::Value::String(mcv.to_string()),
-            );
-            obj.insert(
-                String::from("version"),
-                serde_json::Value::String(v.to_string()),
-            );
-            obj.insert(
-                String::from("rawversion"),
-                serde_json::Value::String(raw.clone()),
-            );
-            if ins {
-                if bch.is_empty() {
-                    let ins = format!("https://bmclapi2.bangbang93.com/forge/download?mcversion={}&version={}&category=installer&format=jar", mcv, v);
-                    obj.insert(
-                        String::from("installer"),
-                        serde_json::Value::String(ins.clone()),
-                    );
-                } else {
-                    let ins = format!("https://bmclapi2.bangbang93.com/forge/download?mcversion={}&version={}&branch={}&category=installer&format=jar", mcv, v, bch);
-                    obj.insert(
-                        String::from("installer"),
-                        serde_json::Value::String(ins.clone()),
-                    );
-                }
-            } else {
-                obj.insert(String::from("installer"), serde_json::Value::Null);
-            }
-            rv.push(serde_json::Value::Object(obj.clone()));
-            obj.clear();
-        }
-        if rv.len() < 1 {
+        if sj.is_empty() {
             return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
-        Ok(res.clone())
+        let mut version = Vec::with_capacity(sj.len());
+        for a_file in sj.iter() {
+            let mcv = a_file["mcversion"].as_str().ok_or(4)?;
+            let v = a_file["version"].as_str().ok_or(5)?;
+            let bch = a_file["branch"].as_str().unwrap_or("");
+            let raw = [mcv, v, bch]
+                .iter()
+                .filter(|e| !e.is_empty())
+                .map(|s| s.to_string())
+                .collect::<Vec<String>>()
+                .join("-");
+            let need_insert_jar = {
+                if let Some(files) = a_file["files"].as_array() {
+                    files.iter().any(|j| {
+                        let cg = j["category"]
+                            .as_str()
+                            .map(|e| e == "installer")
+                            .unwrap_or(false);
+                        let fm = j["format"].as_str().map(|e| e == "jar").unwrap_or(false);
+                        cg && fm
+                    })
+                } else {
+                    false
+                }
+            };
+            let installer: serde_json::Value = if need_insert_jar {
+                let ins = if bch.is_empty() {
+                    format!(
+                        "https://bmclapi2.bangbang93.com/forge/download?mcversion={}&version={}&category=installer&format=jar",
+                        mcv, v
+                    )
+                } else {
+                    format!(
+                        "https://bmclapi2.bangbang93.com/forge/download?mcversion={}&version={}&branch={}&category=installer&format=jar",
+                        mcv, v, bch
+                    )
+                };
+                serde_json::Value::String(ins)
+            } else {
+                serde_json::Value::Null
+            };
+            version.push(json! {{
+                "mcversion": mcv,
+                "version": v,
+                "rawversion": raw,
+                "installer": installer
+            }});
+        }
+        let res_data = json!({
+            "forge": [version]
+        });
+        Ok(res_data)
     } else {
         let md = String::from_utf8(
             crate::account::UrlMethod::new(
@@ -182,17 +173,15 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
 
 /// 获取fabric版本的TLM实现版JSON
 pub async fn get_fabric_version(mcversion: &str) -> MMCLLResult<serde_json::Value> {
-    let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-        2 => {
-            format!(
-                "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader/{}",
-                mcversion
-            )
-        }
-        _ => {
-            format!("https://meta.fabricmc.net/v2/versions/loader/{}", mcversion)
-        }
-    };
+    let meta = format!(
+        "{}/{}",
+        if is_download_from_official() {
+            "https://meta.fabricmc.net/v2/versions/loader"
+        } else {
+            "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions/loader"
+        },
+        mcversion
+    );
     let url = crate::account::UrlMethod::new(meta.as_str());
     let text = String::from_utf8(
         url.get_default_async()
@@ -248,17 +237,15 @@ pub async fn get_fabric_version(mcversion: &str) -> MMCLLResult<serde_json::Valu
 /// 获取quilt版本的TLM实现版JSON
 
 pub async fn get_quilt_version(mcversion: &str) -> MMCLLResult<serde_json::Value> {
-    let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-        2 => {
-            format!(
-                "https://bmclapi2.bangbang93.com/quilt-meta/v3/versions/loader/{}",
-                mcversion
-            )
-        }
-        _ => {
-            format!("https://meta.quiltmc.org/v3/versions/loader/{}", mcversion)
-        }
-    };
+    let meta = format!(
+        "{}/{}",
+        if is_download_from_official() {
+            "https://meta.quiltmc.org/v3/versions/loader"
+        } else {
+            "https://bmclapi2.bangbang93.com/quilt-meta/v3/versions/loader"
+        },
+        mcversion
+    );
     let url = crate::account::UrlMethod::new(meta.as_str());
     let text = String::from_utf8(
         url.get_default_async()
@@ -312,14 +299,14 @@ pub async fn get_quilt_version(mcversion: &str) -> MMCLLResult<serde_json::Value
 }
 
 /// 获取neoforge版本的TLM实现版JSON
-
 pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Value> {
-    if mcversion.eq("1.20.1") {
-        let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-            2 => { "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/forge".to_string() }
-            _ => { "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/forge".to_string() }
+    if mcversion == "1.20.1" {
+        let meta = if is_download_from_official() {
+            "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/forge"
+        } else {
+            "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/forge"
         };
-        let url = crate::account::UrlMethod::new(meta.as_str());
+        let url = crate::account::UrlMethod::new(meta);
         let text = String::from_utf8(
             url.get_default_async()
                 .await
@@ -356,10 +343,10 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
                     String::from("version"),
                     serde_json::Value::String(v.clone()),
                 );
-                obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
-                    format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
-                } else {
+                obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if is_download_from_official() {
                     format!("https://maven.neoforged.net/releases/net/neoforged/forge/{}/forge-{}-installer.jar", n.clone(), n.clone())
+                } else {
+                    format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
                 })));
                 rv.push(serde_json::Value::Object(obj.clone()));
                 obj.clear();
@@ -370,11 +357,12 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
         }
         Ok(res.clone())
     } else {
-        let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
-            2 => { "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/neoforge".to_string() }
-            _ => { "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge".to_string() }
+        let meta = if is_download_from_official() {
+            "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/neoforge"
+        } else {
+            "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge"
         };
-        let url = crate::account::UrlMethod::new(meta.as_str());
+        let url = crate::account::UrlMethod::new(meta);
         let text = String::from_utf8(
             url.get_default_async()
                 .await
@@ -422,10 +410,10 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
                     String::from("version"),
                     serde_json::Value::String(v.clone()),
                 );
-                obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
-                    format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
-                } else {
+                obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if is_download_from_official() {
                     format!("https://maven.neoforged.net/releases/net/neoforged/forge/{}/forge-{}-installer.jar", n.clone(), n.clone())
+                } else {
+                    format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
                 })));
                 rv.push(serde_json::Value::Object(obj.clone()));
                 obj.clear();
@@ -582,8 +570,7 @@ impl DownloadMethod {
                                     + sap.replace("/", "\\").as_str();
                                 lib_vec.push(DownloadTask {
                                     save_path: sapth.clone(),
-                                    download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1
-                                    {
+                                    download_url: if is_download_from_official() {
                                         url.to_string()
                                     } else {
                                         url.replace(
@@ -612,9 +599,7 @@ impl DownloadMethod {
                                         + sap.replace("/", "\\").as_str();
                                     lib_vec.push(DownloadTask {
                                         save_path: sapth.clone(),
-                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone())
-                                            == 1
-                                        {
+                                        download_url: if is_download_from_official() {
                                             url.to_string()
                                         } else {
                                             url.replace(
@@ -641,9 +626,7 @@ impl DownloadMethod {
                                         + sap.replace("/", "\\").as_str();
                                     lib_vec.push(DownloadTask {
                                         save_path: sapth.clone(),
-                                        download_url: if DOWNLOAD_SOURCE.with_borrow(|e| e.clone())
-                                            == 1
-                                        {
+                                        download_url: if is_download_from_official() {
                                             url.to_string()
                                         } else {
                                             url.replace(
@@ -693,7 +676,7 @@ impl DownloadMethod {
             } else {
                 format!(
                     "{}/{}",
-                    if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 {
+                    if is_download_from_official() {
                         "https://libraries.minecraft.net"
                     } else {
                         "https://bmclapi2.bangbang93.com/maven"
@@ -840,7 +823,7 @@ impl DownloadMethod {
                     save_path: format!("{}\\assets\\objects\\{}\\{}", self.savepath, sub, dh),
                     download_url: format!(
                         "{}/{}/{}",
-                        if DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 1 {
+                        if is_download_from_official() {
                             "https://resources.download.minecraft.net"
                         } else {
                             "https://bmclapi2.bangbang93.com/assets"

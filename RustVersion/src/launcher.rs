@@ -69,7 +69,7 @@ pub fn get_mc_vanilla_version(json: String) -> Option<String> {
         }
     }
     if let Some(w) = root["releaseTime"].as_str() {
-        let v = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
+        let v = match super::some_var::IS_DOWNLOAD_SOURCE_OFFICIAL.with_borrow(|e| e.clone()) {
             2 => "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json",
             _ => "https://piston-meta.mojang.com/mc/game/version_manifest.json",
         };

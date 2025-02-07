@@ -21,14 +21,27 @@ pub mod constants {
 /// 部分全局变量值。在需要的时候可以使用with_borrow包裹住该变量以便使用，赋值和引用均可。但是你需要为你赋过的值负责！。
 
 pub mod some_var {
-    use std::cell::RefCell;
+    use std::{cell::RefCell, sync::atomic::AtomicBool};
     thread_local! {
-        pub static DOWNLOAD_SOURCE: RefCell<i32> = RefCell::new(1);  //下载源：目前仅支持两个数字，1：官方、2：BMCLAPI
-        pub static MC_ROOT_JSON: RefCell<serde_json::Value> = RefCell::new(serde_json::Value::Null);  //mc的元数据（可以自己赋值也可以由类库帮忙赋值！）仅能赋值元数据值，如果赋上了别的值，后果自负！
-        pub static AUTHLIB_PATH: RefCell<String> = RefCell::new(String::new());  //设置第三方登录的模块jar文件。在使用第三方登录的时候一定要设置该参数！
-        pub static BIGGEST_THREAD: RefCell<i32> = RefCell::new(64);  //最大线程，但是在Rust里指的是最大并发量（必须要提前赋值，否则将按照默认64处理。）
+        /// 是否从官方下载源下载
+        static IS_DOWNLOAD_SOURCE_OFFICIAL: AtomicBool = AtomicBool::new(false);
+        /// mc的元数据（可以自己赋值也可以由类库帮忙赋值！）仅能赋值元数据值，如果赋上了别的值，后果自负！
+        pub static MC_ROOT_JSON: RefCell<serde_json::Value> = RefCell::new(serde_json::Value::Null);
+        /// 设置第三方登录的模块jar文件。在使用第三方登录的时候一定要设置该参数！
+        pub static AUTHLIB_PATH: RefCell<String> = RefCell::new(String::new());
+        // 最大线程，但是在Rust里指的是最大并发量（必须要提前赋值，否则将按照默认64处理。）
+        pub static BIGGEST_THREAD: RefCell<i32> = RefCell::new(64);
         #[allow(unused)]
         pub static AUTHLIB_URL: RefCell<String> = RefCell::new(String::new());
+    }
+
+    /// 获取是否从官方下载源下载
+    pub fn is_download_from_official() -> bool {
+        let mut res = false;
+        IS_DOWNLOAD_SOURCE_OFFICIAL.with(|f| {
+            res = f.load(std::sync::atomic::Ordering::SeqCst);
+        });
+        res
     }
 }
 
