@@ -1,4 +1,5 @@
 use crate::{MMCLLError, MMCLLResult};
+use crate::some_var::DOWNLOAD_SOURCE;
 
 /// 获取MC版本（可以使用该值赋值给MC_ROOT_JSON）
 
@@ -46,11 +47,11 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
         let obj = obj.as_object_mut().unwrap();
         let rv = res.get_mut("forge").unwrap().as_array_mut().unwrap();
         for i in sj.into_iter() {
-            let mcv = i["mcversion"].as_str().ok_or(4.into())?;
-            let v = i["version"].as_str().ok_or(5.into())?;
+            let mcv = i["mcversion"].as_str().ok_or(4)?;
+            let v = i["version"].as_str().ok_or(5)?;
             let bch = if let Some(e) = i.get("branch") {
                 if !e.is_null() {
-                    e.as_str().ok_or(6.into())?
+                    e.as_str().ok_or(6)?
                 } else {
                     ""
                 }
@@ -116,7 +117,7 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
             .await
             .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
         )
-        .map_err(|_| 1.into())?;
+        .map_err(|_| 1)?;
         let mut sj = quick_xml::Reader::from_str(md.as_str());
         sj.config_mut().trim_text(true);
         let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();
@@ -180,8 +181,7 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
 }
 
 /// 获取fabric版本的TLM实现版JSON
-
-pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i32> {
+pub async fn get_fabric_version(mcversion: &str) -> MMCLLResult<serde_json::Value> {
     let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
         2 => {
             format!(
@@ -197,17 +197,17 @@ pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i3
     let text = String::from_utf8(
         url.get_default_async()
             .await
-            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+            .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
     )
     .map_err(|_| 12)?;
     let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
-        .map_err(|_| ERR_DOWNLOAD_FABRIC_VERSION_NOT_FOUNT)?;
+        .map_err(|_| MMCLLError::DownloadFabricVersionNotFound)?;
     let mut res = serde_json::from_str::<serde_json::Value>("{\"fabric\":[]}").unwrap();
     let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
     let obj = obj.as_object_mut().unwrap();
     let rv = res.get_mut("fabric").unwrap().as_array_mut().unwrap();
     if !ser.is_array() {
-        Err(ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)
+        Err(MMCLLError::DownloadQuiltVersionNotFound)
     } else {
         let ser = ser.as_array().unwrap();
         for i in ser.into_iter() {
@@ -239,7 +239,7 @@ pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i3
             obj.clear();
         }
         if rv.len() < 1 {
-            return Err(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT);
+            return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
     }
@@ -247,7 +247,7 @@ pub async fn get_fabric_version(mcversion: &str) -> Result<serde_json::Value, i3
 
 /// 获取quilt版本的TLM实现版JSON
 
-pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32> {
+pub async fn get_quilt_version(mcversion: &str) -> MMCLLResult<serde_json::Value> {
     let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
         2 => {
             format!(
@@ -259,21 +259,21 @@ pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32
             format!("https://meta.quiltmc.org/v3/versions/loader/{}", mcversion)
         }
     };
-    let url = super::account_mod::UrlMethod::new(meta.as_str());
+    let url = crate::account::UrlMethod::new(meta.as_str());
     let text = String::from_utf8(
         url.get_default_async()
             .await
-            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+            .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
     )
     .map_err(|_| 13)?;
     let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
-        .map_err(|_| ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)?;
+        .map_err(|_| MMCLLError::DownloadQuiltVersionNotFound)?;
     let mut res = serde_json::from_str::<serde_json::Value>("{\"quilt\":[]}").unwrap();
     let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
     let obj = obj.as_object_mut().unwrap();
     let rv = res.get_mut("quilt").unwrap().as_array_mut().unwrap();
     if ser.is_object() {
-        Err(ERR_DOWNLOAD_QUILT_VERSION_NOT_FOUNT)
+        Err(MMCLLError::DownloadQuiltVersionNotFound)
     } else {
         let ser = ser.as_array().unwrap();
         for i in ser.into_iter() {
@@ -305,7 +305,7 @@ pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32
             obj.clear();
         }
         if rv.len() < 1 {
-            return Err(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT);
+            return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
     }
@@ -313,21 +313,21 @@ pub async fn get_quilt_version(mcversion: &str) -> Result<serde_json::Value, i32
 
 /// 获取neoforge版本的TLM实现版JSON
 
-pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, i32> {
+pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Value> {
     if mcversion.eq("1.20.1") {
         let meta = match super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) {
             2 => { "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/forge".to_string() }
             _ => { "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/forge".to_string() }
         };
-        let url = super::account_mod::UrlMethod::new(meta.as_str());
+        let url = crate::account::UrlMethod::new(meta.as_str());
         let text = String::from_utf8(
             url.get_default_async()
                 .await
-                .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+                .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
         )
         .map_err(|_| 14)?;
         let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
-            .map_err(|_| ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT)?;
+            .map_err(|_| MMCLLError::DownloadNeoforgeVersionNotFound)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"neoforge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
         let obj = obj.as_object_mut().unwrap();
@@ -366,7 +366,7 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             }
         }
         if rv.len() < 1 {
-            return Err(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT);
+            return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
     } else {
@@ -374,15 +374,15 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             2 => { "https://bmclapi2.bangbang93.com/neoforge/meta/api/maven/details/releases/net/neoforged/neoforge".to_string() }
             _ => { "https://maven.neoforged.net/api/maven/details/releases/net/neoforged/neoforge".to_string() }
         };
-        let url = super::account_mod::UrlMethod::new(meta.as_str());
+        let url = crate::account::UrlMethod::new(meta.as_str());
         let text = String::from_utf8(
             url.get_default_async()
                 .await
-                .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+                .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
         )
         .map_err(|_| 14)?;
         let ser = serde_json::from_str::<serde_json::Value>(text.as_str())
-            .map_err(|_| ERR_DOWNLOAD_NEOFORGE_VERSION_NOT_FOUNT)?;
+            .map_err(|_| MMCLLError::DownloadNeoforgeVersionNotFound)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"neoforge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
         let obj = obj.as_object_mut().unwrap();
@@ -432,7 +432,7 @@ pub async fn get_neoforge_version(mcversion: &str) -> Result<serde_json::Value, 
             }
         }
         if rv.len() < 1 {
-            return Err(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT);
+            return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
     }
@@ -444,51 +444,51 @@ async fn download_as_window(
     savepath: &str,
     download_url: &str,
     file_hash: &str,
-) -> Result<(), i32> {
+) -> MMCLLResult<()> {
     let file_path = std::path::Path::new(savepath);
     if file_path.exists() {
         if file_hash.is_empty() {
-            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+            return Err(MMCLLError::DownloadFileExists);
         }
-        let real_file_hash = crate::rust_lib::main_mod::get_sha1(savepath);
+        let real_file_hash = crate::get_sha1(savepath);
         if let None = real_file_hash {
-            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+            return Err(MMCLLError::DownloadFileExists);
         }
         let real_file_hash = real_file_hash.unwrap();
         if real_file_hash.ne(file_hash) {
-            if !crate::rust_lib::main_mod::delete_file(savepath) {
-                return Err(ERR_DOWNLOAD_FILE_EXISTS);
+            if !crate::delete_file(savepath) {
+                return Err(MMCLLError::DownloadFileExists);
             }
         } else {
-            return Err(ERR_DOWNLOAD_FILE_EXISTS);
+            return Err(MMCLLError::DownloadFileExists);
         }
     } else {
         let parent = file_path.parent();
         if let None = parent {
-            return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR);
+            return Err(MMCLLError::DownloadCannotCreateDir);
         }
         let rt = std::fs::create_dir_all(file_path.parent().unwrap());
         if let Err(_) = rt {
-            return Err(ERR_DOWNLOAD_CANNOT_CREATE_DIR);
+            return Err(MMCLLError::DownloadCannotCreateDir);
         }
     }
     if download_url.contains("linux")
         || download_url.contains("macos")
         || download_url.contains("osx")
     {
-        return Err(ERR_DOWNLOAD_NOT_SUPPORT_SYSTEM);
+        return Err(MMCLLError::DownloadNotSupportSystem);
     }
-    let url = super::account_mod::UrlMethod::new(download_url);
+    let url = crate::account::UrlMethod::new(download_url);
     let url = url.get_default_async().await;
     if let None = url {
-        return Err(ERR_DOWNLOAD_FILE_DOWNLOAD_FAILURE);
+        return Err(MMCLLError::DownloadFileDownloadFailure);
     }
     let url = url.unwrap();
     if !file_path.exists() {
-        super::main_mod::set_file_vecu8(savepath, &url);
+        super::set_file_vecu8(savepath, &url);
         Ok(())
     } else {
-        return Err(ERR_DOWNLOAD_FILE_EXISTS);
+        return Err(MMCLLError::DownloadFileExists);
     }
 }
 
@@ -552,19 +552,19 @@ impl DownloadMethod {
         &self,
         raw_json: String,
         callback: T,
-    ) -> Result<(), i32>
+    ) -> MMCLLResult<()>
     where
-        T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static,
+        T: Fn(String, usize, MMCLLResult<()>) + Send + std::marker::Copy + 'static,
     {
         let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str())
-            .map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            .map_err(|_| MMCLLError::DownloadArgumentsError)?;
         let libs = libs["libraries"]
             .as_array()
-            .ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            .ok_or(MMCLLError::DownloadArgumentsError)?;
         let mut lib_vec: Vec<DownloadTask> = Vec::new();
         for m in 0..libs.len() {
             let i = libs[m].clone();
-            if !super::launcher_mod::judge_mc_rules(&i.clone()) {
+            if !crate::launcher::judge_mc_rules(&i.clone()) {
                 continue;
             }
             let dn = i.get("downloads");
@@ -678,7 +678,7 @@ impl DownloadMethod {
             if let Some(e) = real_native {
                 name = format!("{}:{}", name, e);
             }
-            let real_path = super::launcher_mod::convert_name_to_path(name.to_string());
+            let real_path = crate::launcher::convert_name_to_path(name.to_string());
             if let None = real_path {
                 continue;
             }
@@ -741,9 +741,9 @@ impl DownloadMethod {
                 )
                 .await;
                 if let Err(e) = f {
-                    callback(lib.download_url, index, e);
+                    callback(lib.download_url, index, Err(e));
                 } else {
-                    callback(lib.download_url, index, OK);
+                    callback(lib.download_url, index, Ok(()));
                 }
                 drop(permit);
             });
@@ -807,7 +807,7 @@ impl DownloadMethod {
         // }
         for task in tasks.into_iter() {
             if let Err(_) = task.await {
-                return Err(ERR_DOWNLOAD_DOWNLOAD_FAILURE);
+                return Err(MMCLLError::DownloadDownloadFailure);
             }
         }
         Ok(())
@@ -822,15 +822,15 @@ impl DownloadMethod {
         &self,
         raw_json: String,
         callback: T,
-    ) -> Result<(), i32>
+    ) -> MMCLLResult<()>
     where
-        T: Fn(String, usize, i32) + Send + std::marker::Copy + 'static,
+        T: Fn(String, usize, MMCLLResult<()>) + Send + std::marker::Copy + 'static,
     {
         let libs = serde_json::from_str::<serde_json::Value>(raw_json.as_str())
-            .map_err(|_| ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            .map_err(|_| MMCLLError::DownloadArgumentsError)?;
         let libs = libs["objects"]
             .as_object()
-            .ok_or(ERR_DOWNLOAD_ARGUMENTS_ERROR)?;
+            .ok_or(MMCLLError::DownloadArgumentsError)?;
         let mut lib_vec: Vec<DownloadTask> = Vec::new();
         for i in libs.keys() {
             let dh = libs[i]["hash"].as_str();
@@ -876,9 +876,9 @@ impl DownloadMethod {
                 )
                 .await;
                 if let Err(e) = f {
-                    callback(lib.download_url, index, e);
+                    callback(lib.download_url, index, Err(e));
                 } else {
-                    callback(lib.download_url, index, OK);
+                    callback(lib.download_url, index, Ok(()));
                 }
                 drop(permit);
             });
@@ -886,7 +886,7 @@ impl DownloadMethod {
         }
         for task in tasks.into_iter() {
             if let Err(_) = task.await {
-                return Err(ERR_DOWNLOAD_DOWNLOAD_FAILURE);
+                return Err(MMCLLError::DownloadDownloadFailure);
             }
         }
         Ok(())
