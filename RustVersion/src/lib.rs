@@ -192,7 +192,7 @@ pub fn generate_thirdparty_metadata_base64(url: &str) -> String {
     if metadata.is_err() {
         return String::new();
     }
-    
+
     base64::engine::general_purpose::STANDARD.encode(metadata.unwrap().replace("\\/", "/"))
 }
 
