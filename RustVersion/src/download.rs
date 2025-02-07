@@ -8,10 +8,10 @@ pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
         _ => "https://piston-meta.mojang.com/mc/game/version_manifest.json",
     };
     let md = String::from_utf8(
-        super::account_mod::UrlMethod::new(v)
+        crate::account::UrlMethod::new(v)
             .get_default_async()
             .await
-            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+            .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
     )
     .map_err(|_| 1)?;
     let sj = serde_json::from_str::<serde_json::Value>(md.as_str()).map_err(|_| 2)?;
@@ -21,10 +21,10 @@ pub async fn get_mc_versions() -> MMCLLResult<serde_json::Value> {
 /// 获取Forge版本的JSON（无论BMCLAPI还是Official，最终都会转成一种标准TLM格式：）
 /// 具体格式请见：README.md
 
-pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i32> {
+pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Value> {
     if super::some_var::DOWNLOAD_SOURCE.with_borrow(|e| e.clone()) == 2 {
         let md = String::from_utf8(
-            super::account_mod::UrlMethod::new(
+            crate::account::UrlMethod::new(
                 format!(
                     "https://bmclapi2.bangbang93.com/forge/minecraft/{}",
                     mcversion
@@ -33,22 +33,22 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
             )
             .get_default_async()
             .await
-            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+            .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
         )
         .map_err(|_| 3)?;
         let sj = serde_json::from_str::<serde_json::Value>(md.as_str())
-            .map_err(|_| ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT)?;
-        let sj = sj.as_array().ok_or(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT)?;
+            .map_err(|_| MMCLLError::DownloadForgeVersionNotFound)?;
+        let sj = sj.as_array().ok_or(MMCLLError::DownloadForgeVersionNotFound)?;
         let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();
         let mut obj = serde_json::from_str::<serde_json::Value>("{}").unwrap();
         let obj = obj.as_object_mut().unwrap();
         let rv = res.get_mut("forge").unwrap().as_array_mut().unwrap();
         for i in sj.into_iter() {
-            let mcv = i["mcversion"].as_str().ok_or(4)?;
-            let v = i["version"].as_str().ok_or(5)?;
+            let mcv = i["mcversion"].as_str().ok_or(4.into())?;
+            let v = i["version"].as_str().ok_or(5.into())?;
             let bch = if let Some(e) = i.get("branch") {
                 if !e.is_null() {
-                    e.as_str().ok_or(6)?
+                    e.as_str().ok_or(6.into())?
                 } else {
                     ""
                 }
@@ -102,19 +102,19 @@ pub async fn get_forge_versions(mcversion: &str) -> Result<serde_json::Value, i3
             obj.clear();
         }
         if rv.len() < 1 {
-            return Err(ERR_DOWNLOAD_FORGE_VERSION_NOT_FOUNT);
+            return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
     } else {
         let md = String::from_utf8(
-            super::account_mod::UrlMethod::new(
+            crate::account::UrlMethod::new(
                 "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml",
             )
             .get_default_async()
             .await
-            .ok_or(ERR_DOWNLOAD_CANNOT_GET_METADATA)?,
+            .ok_or(MMCLLError::DownloadCannotGetMetadata)?,
         )
-        .map_err(|_| 1)?;
+        .map_err(|_| 1.into())?;
         let mut sj = quick_xml::Reader::from_str(md.as_str());
         sj.config_mut().trim_text(true);
         let mut res = serde_json::from_str::<serde_json::Value>("{\"forge\":[]}").unwrap();

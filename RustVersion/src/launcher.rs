@@ -77,7 +77,7 @@ pub fn get_mc_vanilla_version(json: String) -> Option<String> {
             .with_borrow(|e| e.clone())
             .is_null()
         {
-            let url = super::account_mod::UrlMethod::new(v);
+            let url = crate::account::UrlMethod::new(v);
             if let Some(e) = url.get_default() {
                 let e = String::from_utf8(e);
                 if let Ok(f) = e {
@@ -926,44 +926,44 @@ impl LaunchGame {
             let ap = super::some_var::AUTHLIB_PATH.with_borrow(|e| e.clone());
             let ap = std::path::Path::new(ap.as_str());
             if !ap.exists() || ap.is_dir() {
-                return ERR_LAUNCH_ACCOUNT_AUTHLIB;
+                return Err(MMCLLError::LaunchAccountAuthlib);
             }
             if let None = pl {
-                return ERR_LAUNCH_ACCOUNT_THIRDPARTY_ACCESS_TOKEN_OR_URL;
+                return Err(MMCLLError::LaunchAccountThirdpartyAccessTokenOrURL);
             }
         }
         let jpath = std::path::Path::new(self.java_path.as_str());
         if !jpath.exists() || !jpath.is_file() {
-            return ERR_LAUNCH_JAVA_PATH;
+            return Err(MMCLLError::LaunchJavaPath);
         }
         let rpath = std::path::Path::new(self.root_path.as_str());
         if !rpath.exists() || !rpath.is_dir() {
-            return ERR_LAUNCH_ROOT_PATH;
+            return Err(MMCLLError::LaunchRootPath);
         }
         let vpath = std::path::Path::new(self.version_path.as_str());
         if !vpath.exists() || !vpath.is_dir() {
-            return ERR_LAUNCH_VERSION_PATH;
+            return Err(MMCLLError::LaunchVersionPath);
         }
         let gpath = std::path::Path::new(self.game_path.as_str());
         if !gpath.exists() || !gpath.is_dir() {
-            return ERR_LAUNCH_GAME_PATH;
+            return Err(MMCLLError::LaunchGamePath);
         }
         if self.window_width < 854 || self.window_width > (window_size.width as usize) {
-            return ERR_LAUNCH_WIDTH;
+            return Err(MMCLLError::LaunchWidth);
         }
         if self.window_height < 480 || self.window_height > (window_size.height as usize) {
-            return ERR_LAUNCH_HEIGHT;
+            return Err(MMCLLError::LaunchHeight);
         }
         if self.min_memory > 1024 || self.min_memory < 256 {
-            return ERR_LAUNCH_MIN_MEMORY;
+            return Err(MMCLLError::LaunchMinMemory);
         }
         if self.max_memory < 1024 || self.max_memory > (mem as usize) {
-            return ERR_LAUNCH_MAX_MEMORY;
+            return Err(MMCLLError::LaunchMaxMemory);
         }
         if self.custom_info == "" {
-            return ERR_LAUNCH_CUSTOM_INFO;
+            return Err(MMCLLError::LaunchCustomInfo);
         }
-        OK
+        Ok(())
     }
     /// 拼接全局参数
     fn put_arguments(
@@ -971,16 +971,16 @@ impl LaunchGame {
         real_json: String,
         def_jvm: String,
         defn_jvm: String,
-    ) -> Result<Vec<String>, i32> {
+    ) -> MMCLLResult<Vec<String>> {
         let root = serde_json::from_str::<serde_json::Value>(real_json.as_str())
-            .map_err(|_| ERR_GAME_RAW_JSON_STRUCTURE)?;
-        let mcid = root["id"].as_str().ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?;
+            .map_err(|_| MMCLLError::GameRawJsonStructure)?;
+        let mcid = root["id"].as_str().ok_or(MMCLLError::GameRawJsonStructure)?;
         let main_class = root["mainClass"]
             .as_str()
-            .ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?;
+            .ok_or(MMCLLError::GameRawJsonStructure)?;
         let asset_index = root["assetIndex"]["id"]
             .as_str()
-            .ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?;
+            .ok_or(MMCLLError::GameRawJsonStructure)?;
         let mut result: Vec<String> = Vec::new();
         let def_jvm: Vec<String> = def_jvm
             .split_whitespace()
@@ -1053,7 +1053,7 @@ impl LaunchGame {
             }
         } else {
             result.extend(
-                judge_arguments(real_json.clone(), "game").ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?,
+                judge_arguments(real_json.clone(), "game").ok_or(MMCLLError::GameRawJsonStructure)?,
             );
         }
         if !self.additional_game.contains("--fullScreen") {
@@ -1097,7 +1097,7 @@ impl LaunchGame {
             self.root_path.as_str(),
             self.version_path.as_str(),
         )
-        .ok_or(ERR_GAME_RAW_JSON_STRUCTURE)?;
+        .ok_or(MMCLLError::GameRawJsonStructure)?;
         for i in result.iter_mut() {
             *i = i
                 .replace(
@@ -1161,23 +1161,23 @@ impl LaunchGame {
         let final_json: String;
         let raw_json = super::main_mod::get_file(version_json_path.as_str());
         if let None = raw_json {
-            return ERR_GAME_ELIGIBLE_JSON_NOT_FOUND;
+            return Err(MMCLLError::GameEligibleJsonNotFound);
         }
         let raw_json = raw_json.unwrap();
         let inherits_json = get_mc_inherits_from(self.version_path.clone(), "inheritsFrom");
         if let None = inherits_json {
-            return ERR_GAME_INHERITS_FROM_VERSION_LOSE;
+            return Err(MMCLLError::GameInheritsFromVersionLose);
         }
         let inherits_json = inherits_json.unwrap();
         if !inherits_json.eq(self.version_path.as_str()) {
             let file = get_mc_real_path(inherits_json, ".json");
             if let None = file {
-                return ERR_GAME_INHERITS_FROM_VERSION_LOSE;
+                return Err(MMCLLError::GameInheritsFromVersionLose);
             }
             let file = file.unwrap();
             let f_json = super::main_mod::get_file(file.as_str());
             if let None = f_json {
-                return ERR_GAME_INHERITS_FROM_VERSION_LOSE;
+                return Err(MMCLLError::GameInheritsFromVersionLose);
             }
             final_json = f_json.unwrap();
         } else {
@@ -1188,24 +1188,22 @@ impl LaunchGame {
             self.root_path.as_str(),
             self.version_path.as_str(),
         ) {
-            return ERR_GAME_CANNOT_UNZIP_NATIVE;
+            return Err(MMCLLError::GameCannotUnzipNative);
         }
         let real_json = replace_mc_inherits_from(raw_json, final_json);
         if let None = real_json {
-            return ERR_GAME_INHERITS_JSON_STRUCTURE;
+            return Err(MMCLLError::GameInheritsJsonStructure);
         }
         let real_json = real_json.unwrap();
-        let param = self.put_arguments(real_json.clone(), def_jvm.clone(), defn_jvm.clone());
-        if let Err(e) = param {
-            return e;
-        }
-        let mut param = param.unwrap();
+        let mut param = self.put_arguments(real_json.clone(), def_jvm.clone(), defn_jvm.clone())?;
         param.splice(0..0, [self.java_path.clone()]);
         let command = param.iter().map(AsRef::as_ref).collect();
         (self.callback)(command);
         Ok(())
     }
 }
+
+
 /// 提供了Account登录的启动类模块，该类不是用来登录账号的，只是用来启动游戏时才用到的！
 ///
 /// 离线模式调用示例：LaunchAccount::new_offline("Steve", "1234567890abcdef1234567890abcdef");
@@ -1370,20 +1368,11 @@ impl LaunchAccount {
 }
 /// 该函数为启动游戏的函数，接受一个LaunchOption函数和一个闭包。
 /// 其中，闭包用于获取启动参数。
-pub fn launch_game<F>(option: LaunchOption, callback: F) -> Result<(), i32>
+pub fn launch_game<F>(option: LaunchOption, callback: F) -> MMCLLResult<()>
 where
     F: Fn(Vec<&str>) + 'static,
 {
     let res = LaunchGame::new(option, callback);
-    let code = res.check_error();
-    if code != 0 {
-        Err(code)
-    } else {
-        let code = res.game_launch();
-        if code != 0 {
-            Err(code)
-        } else {
-            Ok(())
-        }
-    }
+    res.check_error()?;
+    res.game_launch()
 }
