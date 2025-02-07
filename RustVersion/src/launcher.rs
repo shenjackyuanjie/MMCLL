@@ -2,6 +2,7 @@
 
 use crate::constants::{LAUNCHER_NANE, LAUNCHER_VERSION};
 use crate::{MMCLLError, MMCLLResult};
+use crate::some_var::is_download_from_official;
 
 /// 此方法用于将json libraries里的name值转换为path。
 pub fn convert_name_to_path(name: String) -> Option<String> {
@@ -53,9 +54,9 @@ pub fn get_mc_vanilla_version(json: String) -> Option<String> {
         }
     }
     if let Some(e) = root["patches"].as_array() {
-        for i in e.into_iter() {
+        for i in e.iter() {
             let id = i["id"].as_str();
-            if let None = id {
+            if id.is_none() {
                 continue;
             }
             if id?.eq("game") {
@@ -69,9 +70,10 @@ pub fn get_mc_vanilla_version(json: String) -> Option<String> {
         }
     }
     if let Some(w) = root["releaseTime"].as_str() {
-        let v = match super::some_var::IS_DOWNLOAD_SOURCE_OFFICIAL.with_borrow(|e| e.clone()) {
-            2 => "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json",
-            _ => "https://piston-meta.mojang.com/mc/game/version_manifest.json",
+        let v = if is_download_from_official() {
+            "https://piston-meta.mojang.com/mc/game/version_manifest.json"
+        } else {
+            "https://bmclapi2.bangbang93.com/mc/game/version_manifest.json"
         };
         if super::some_var::MC_ROOT_JSON
             .with_borrow(|e| e.clone())
@@ -92,7 +94,7 @@ pub fn get_mc_vanilla_version(json: String) -> Option<String> {
         {
             let mrj = super::some_var::MC_ROOT_JSON.with_borrow(|e| e.clone());
             if let Some(g) = mrj["version"].as_array() {
-                for h in g.into_iter() {
+                for h in g.iter() {
                     if let Some(j) = h["releaseTime"].as_str() {
                         if j.eq(w) {
                             if let Some(d) = h["id"].as_str() {
@@ -123,30 +125,30 @@ pub fn unzip(zipfile: String, extfile: String) -> bool {
     }
     if !zip_path.exists() || (zip_path.exists() && zip_path.is_file()) {
         let cd = std::fs::create_dir_all(ext_path);
-        if let Err(_) = cd {
+        if cd.is_err() {
             return false;
         }
     }
     let zip_file = std::fs::File::open(zip_path);
-    if let Err(_) = zip_file {
+    if zip_file.is_err() {
         return false;
     }
     let zip_file = zip_file.unwrap();
     let zip_ext = zip::ZipArchive::new(zip_file);
-    if let Err(_) = zip_ext {
+    if zip_ext.is_err() {
         return false;
     }
     let mut zip_ext = zip_ext.unwrap();
     for i in 0..zip_ext.len() {
         let f = zip_ext.by_index(i);
-        if let Err(_) = f {
+        if f.is_err() {
             continue;
         }
         let mut f = f.unwrap();
         if f.is_dir() {
             let ext_dir = ext_path.join(std::path::Path::new(&f.name().replace("\\", "")));
             let cd = std::fs::create_dir_all(ext_dir);
-            if let Err(_) = cd {
+            if cd.is_err() {
                 continue;
             }
         } else {
@@ -156,12 +158,12 @@ pub fn unzip(zipfile: String, extfile: String) -> bool {
             } else {
                 std::fs::File::open(file_path)
             };
-            if let Err(_) = ext_file {
+            if ext_file.is_err() {
                 continue;
             }
             let mut ext_file = ext_file.unwrap();
             let res = std::io::copy(&mut f, &mut ext_file);
-            if let Err(_) = res {
+            if res.is_err() {
                 continue;
             }
         }
@@ -178,7 +180,7 @@ pub fn delete_file_keep(dir_path: String, suffix: &str) -> bool {
     if suffix.is_empty() || suffix.eq(".") {
         return false;
     }
-    if let None = dir_path.find("\\") {
+    if !dir_path.contains("\\") {
         return false;
     }
     let suffix = &suffix[1..suffix.len()];
@@ -190,13 +192,13 @@ pub fn delete_file_keep(dir_path: String, suffix: &str) -> bool {
                 continue;
             }
             let path_ext = path.extension();
-            if let None = path_ext {
+            if path_ext.is_none() {
                 continue;
             }
             let path_ext = path_ext.unwrap();
             if !path_ext.eq(suffix) {
                 let cd = std::fs::remove_file(path);
-                if let Err(_) = cd {
+                if cd.is_err() {
                     continue;
                 }
             }
@@ -226,7 +228,7 @@ pub fn get_mc_inherits_from(version_path: String, ioj: &str) -> Option<String> {
     let path = std::path::Path::new(version_path.as_str());
     if path.exists() && path.is_dir() {
         let real_path = get_mc_real_path(version_path.clone(), ".json")?;
-        let real_file = super::main_mod::get_file(real_path.as_str())?;
+        let real_file = crate::get_file(real_path.as_str())?;
         let root = serde_json::from_str::<serde_json::Value>(real_file.as_str()).ok()?;
         if let Some(e) = root[ioj].as_str() {
             if e.is_empty() {
@@ -241,15 +243,15 @@ pub fn get_mc_inherits_from(version_path: String, ioj: &str) -> Option<String> {
                 }
                 let ps = pa.display().to_string();
                 let version_json = get_mc_real_path(ps.clone(), ".json");
-                if let None = version_json {
+                if version_json.is_none() {
                     continue;
                 }
-                let json_content = super::main_mod::get_file(version_json?.as_str());
-                if let None = json_content {
+                let json_content = crate::get_file(version_json?.as_str());
+                if json_content.is_none() {
                     continue;
                 }
                 let vanilla_version = get_mc_vanilla_version(json_content?);
-                if let None = vanilla_version {
+                if vanilla_version.is_none() {
                     continue;
                 }
                 if vanilla_version?.eq(e) {
@@ -264,10 +266,9 @@ pub fn get_mc_inherits_from(version_path: String, ioj: &str) -> Option<String> {
 }
 
 /// 从inheritsFrom键中找到的json当作原版json，并拼接上inheritsFrom键所在的json，将其合并成一个json！
-
 pub fn replace_mc_inherits_from(mut raw_json: String, mut ins_json: String) -> Option<String> {
     fn return_some(k: &mut serde_json::Map<String, serde_json::Value>) -> Option<String> {
-        Some(serde_json::to_string(&k).ok()?)
+        serde_json::to_string(&k).ok()
     }
     if raw_json.is_empty() || ins_json.is_empty() {
         return None;
@@ -293,7 +294,7 @@ pub fn replace_mc_inherits_from(mut raw_json: String, mut ins_json: String) -> O
     let raw_lib = rt_raw.get("libraries");
     if let Some(d) = raw_lib {
         if let Some(e) = d.as_array() {
-            for i in e.into_iter() {
+            for i in e.iter() {
                 if let Some(f) = i.as_object() {
                     if let Some(h) = rt_ins.get_mut("libraries") {
                         if let Some(g) = h.as_array_mut() {
@@ -307,7 +308,7 @@ pub fn replace_mc_inherits_from(mut raw_json: String, mut ins_json: String) -> O
     if let Some(r1) = rt_raw.get("arguments") {
         if let Some(r2) = r1.get("jvm") {
             if let Some(e) = r2.as_array() {
-                for i in e.into_iter() {
+                for i in e.iter() {
                     if let Some(i1) = rt_ins.get_mut("arguments") {
                         if let Some(i2) = i1.get_mut("jvm") {
                             if let Some(f) = i2.as_array_mut() {
@@ -322,7 +323,7 @@ pub fn replace_mc_inherits_from(mut raw_json: String, mut ins_json: String) -> O
     if let Some(r1) = rt_raw.get("arguments") {
         if let Some(r2) = r1.get("game") {
             if let Some(e) = r2.as_array() {
-                for i in e.into_iter() {
+                for i in e.iter() {
                     if let Some(i1) = rt_ins.get_mut("arguments") {
                         if let Some(i2) = i1.get_mut("game") {
                             if let Some(f) = i2.as_array_mut() {
@@ -363,12 +364,12 @@ pub fn get_mc_real_path(version_path: String, suffix: &str) -> Option<String> {
             let ps = pa.display().to_string();
             if ps.contains(suffix) {
                 return if suffix.eq(".json") {
-                    let file_content = super::main_mod::get_file(ps.as_str());
-                    if let None = file_content {
+                    let file_content = crate::get_file(ps.as_str());
+                    if file_content.is_none() {
                         continue;
                     }
                     let root = serde_json::from_str::<serde_json::Value>(file_content?.as_str());
-                    if let Err(_) = root {
+                    if root.is_err() {
                         continue;
                     }
                     let root = root.unwrap();
@@ -389,8 +390,8 @@ pub fn get_mc_real_path(version_path: String, suffix: &str) -> Option<String> {
                     Some(ps)
                 };
             } else if !suffix.contains(".") {
-                let sha = super::main_mod::get_sha1(ps.as_str());
-                if let None = sha {
+                let sha = crate::get_sha1(ps.as_str());
+                if sha.is_none() {
                     continue;
                 }
                 if sha?.eq(suffix) {
@@ -408,9 +409,9 @@ pub fn judge_arguments(args_json: String, key: &str) -> Option<Vec<String>> {
     let root = serde_json::from_str::<serde_json::Value>(args_json.as_str()).ok()?;
     let argu = root["arguments"][key].as_array()?;
     let mut res: Vec<String> = Vec::new();
-    for i in argu.into_iter() {
+    for i in argu.iter() {
         let i_str = serde_json::to_string(i);
-        if let Err(_) = i_str {
+        if i_str.is_err() {
             continue;
         }
         let i_str = i_str.unwrap();
@@ -418,7 +419,7 @@ pub fn judge_arguments(args_json: String, key: &str) -> Option<Vec<String>> {
             continue;
         }
         let i_str = i.as_str();
-        if let None = i_str {
+        if i_str.is_none() {
             continue;
         }
         let i_str = i_str?.replace(" ", "");
@@ -432,19 +433,19 @@ pub fn judge_arguments(args_json: String, key: &str) -> Option<Vec<String>> {
 
 pub fn judge_mc_rules(root: &serde_json::Value) -> bool {
     let rules = root["rules"].as_array();
-    if let None = rules {
+    if rules.is_none() {
         return true;
     }
     let rules = rules.unwrap();
-    for i in rules.into_iter() {
+    for i in rules.iter() {
         let action = i["action"].as_str();
-        if let None = action {
+        if action.is_none() {
             continue;
         }
         let action = action.unwrap();
         if action.eq("allow") {
             let os_name = i["os"]["name"].as_str();
-            if let None = os_name {
+            if os_name.is_none() {
                 continue;
             }
             let os_name = os_name.unwrap();
@@ -453,7 +454,7 @@ pub fn judge_mc_rules(root: &serde_json::Value) -> bool {
             }
         } else if action.eq("disallow") {
             let os_name = i["os"]["name"].as_str();
-            if let None = os_name {
+            if os_name.is_none() {
                 continue;
             }
             let os_name = os_name.unwrap();
@@ -476,19 +477,19 @@ pub fn get_mc_libs(raw_json: String, root_path: &str, version_path: &str) -> Opt
     let mut no_opt: Vec<String> = Vec::new();
     let root = serde_json::from_str::<serde_json::Value>(raw_json.as_str()).ok()?;
     let json_lib = root["libraries"].as_array()?;
-    for i in json_lib.into_iter() {
+    for i in json_lib.iter() {
         let name = i["name"].as_str();
-        if let None = name {
+        if name.is_none() {
             continue;
         }
         let expect_rule = judge_mc_rules(&i.clone());
         let mut expect_downloads = true;
         if let Some(e) = i.get("downloads") {
             if let Some(f) = e.get("classifiers") {
-                if let Some(_) = f.as_object() {
+                if f.as_object().is_some() {
                     expect_downloads = false;
                     if let Some(g) = e.get("artifact") {
-                        if let Some(_) = g.as_object() {
+                        if g.as_object().is_some() {
                             expect_downloads = true;
                         }
                     }
@@ -516,7 +517,7 @@ pub fn get_mc_libs(raw_json: String, root_path: &str, version_path: &str) -> Opt
         let nonum = extract_number(nocom.clone(), false);
         let noword = extract_number(nocom.clone(), true);
         let toint = noword.parse::<u64>();
-        if let Err(_) = toint {
+        if toint.is_err() {
             continue;
         }
         let toint = toint.unwrap();
@@ -525,16 +526,16 @@ pub fn get_mc_libs(raw_json: String, root_path: &str, version_path: &str) -> Opt
             no_low.push(i);
         } else {
             let temp_1 = temp_list.iter().position(|x| x == &nonum);
-            if let None = temp_1 {
+            if temp_1.is_none() {
                 continue;
             }
             let temp_2 = no_low.get(temp_1?);
-            if let None = temp_2 {
+            if temp_2.is_none() {
                 continue;
             }
             let temp_2 = extract_number(temp_2?.to_string(), true);
             let temp_3 = temp_2.parse::<u64>();
-            if let Err(_) = temp_3 {
+            if temp_3.is_err() {
                 continue;
             }
             let temp_3 = temp_3.unwrap();
@@ -595,24 +596,24 @@ pub fn unzip_native(raw_json: String, root_path: &str, version_path: &str) -> bo
     let mut no_low: Vec<String> = Vec::new();
     let mut temp_list: Vec<String> = Vec::new();
     let root = serde_json::from_str::<serde_json::Value>(raw_json.as_str());
-    if let Err(_) = root {
+    if root.is_err() {
         return false;
     }
     let root = root.unwrap();
     let json_lib = root["libraries"].as_array();
-    if let None = json_lib {
+    if json_lib.is_none() {
         return false;
     }
     let json_lib = json_lib.unwrap();
-    for i in json_lib.into_iter() {
+    for i in json_lib.iter() {
         let expect_rule = judge_mc_rules(&i.clone());
         let lib_name = i["name"].as_str();
-        if let None = lib_name {
+        if lib_name.is_none() {
             continue;
         }
         let lib_name = lib_name.unwrap();
         let lib_arch = i["natives"]["windows"].as_str();
-        if let None = lib_arch {
+        if lib_arch.is_none() {
             continue;
         }
         let lib_arch = lib_arch.unwrap();
@@ -637,7 +638,7 @@ pub fn unzip_native(raw_json: String, root_path: &str, version_path: &str) -> bo
         let nonum = extract_number(nocom.clone(), false);
         let noword = extract_number(nocom.clone(), true);
         let toint = noword.parse::<u64>();
-        if let Err(_) = toint {
+        if toint.is_err() {
             continue;
         }
         let toint = toint.unwrap();
@@ -646,17 +647,17 @@ pub fn unzip_native(raw_json: String, root_path: &str, version_path: &str) -> bo
             no_low.push(i);
         } else {
             let temp_1 = temp_list.iter().position(|x| x == &nonum);
-            if let None = temp_1 {
+            if temp_1.is_none() {
                 continue;
             }
             let temp_1 = temp_1.unwrap();
             let temp_2 = no_low.get(temp_1);
-            if let None = temp_2 {
+            if temp_2.is_none() {
                 continue;
             }
             let temp_2 = extract_number(temp_2.unwrap().to_string(), true);
             let temp_3 = temp_2.parse::<u64>();
-            if let Err(_) = temp_3 {
+            if temp_3.is_err() {
                 continue;
             }
             let temp_3 = temp_3.unwrap();
@@ -669,24 +670,24 @@ pub fn unzip_native(raw_json: String, root_path: &str, version_path: &str) -> bo
     let dir = format!(
         "{}\\{}-{}-natives",
         version_path,
-        super::main_mod::extract_file_name(version_path),
+        crate::extract_file_name(version_path),
         LAUNCHER_NANE
     );
     let ver_file = std::path::Path::new(dir.as_str());
     if !ver_file.exists() || (ver_file.exists() && ver_file.is_file()) {
         let cf = std::fs::create_dir_all(ver_file);
-        if let Err(_) = cf {
+        if cf.is_err() {
             return false;
         }
     } else {
         return true;
     }
-    if no_low.len() == 0 {
+    if no_low.is_empty() {
         true
     } else {
         for c in no_low.into_iter() {
             let cvn = convert_name_to_path(c);
-            if let None = cvn {
+            if cvn.is_none() {
                 continue;
             }
             let cvn = cvn.unwrap();
@@ -856,7 +857,7 @@ impl LaunchGame {
     fn check_error(&self) -> MMCLLResult<()> {
         let event_loop = winit::event_loop::EventLoop::new();
         let monitor = event_loop.available_monitors().next();
-        if let None = monitor {
+        if monitor.is_none() {
             return Err(MMCLLError::UnknownError(864));
         }
         let monitor = monitor.unwrap();
@@ -878,22 +879,22 @@ impl LaunchGame {
                 "https://api.minecraftservices.com/minecraft/profile",
             );
             let ih = um.get(self.account.get_access_token());
-            if let None = ih {
+            if ih.is_none() {
                 return Err(MMCLLError::LaunchAccountAccessToken);
             }
             let json =
                 serde_json::from_str::<serde_json::Value>(ih.unwrap().replace("\\/", "/").as_str());
-            if let Err(_) = json {
+            if json.is_err() {
                 return Err(MMCLLError::UnknownError(891));
             }
             let json = json.unwrap();
             let name = json["name"].as_str();
-            if let None = name {
+            if name.is_none() {
                 return Err(MMCLLError::LaunchAccountNoLegal);
             }
             let name = name.unwrap();
             let uuid = json["id"].as_str();
-            if let None = uuid {
+            if uuid.is_none() {
                 return Err(MMCLLError::LaunchAccountNoLegal);
             }
             let uuid = uuid.unwrap();
@@ -924,7 +925,7 @@ impl LaunchGame {
             if !ap.exists() || ap.is_dir() {
                 return Err(MMCLLError::LaunchAccountAuthlib);
             }
-            if let None = pl {
+            if pl.is_none() {
                 return Err(MMCLLError::LaunchAccountThirdpartyAccessTokenOrURL);
             }
         }
@@ -956,7 +957,7 @@ impl LaunchGame {
         if self.max_memory < 1024 || self.max_memory > (mem as usize) {
             return Err(MMCLLError::LaunchMaxMemory);
         }
-        if self.custom_info == "" {
+        if self.custom_info.is_empty() {
             return Err(MMCLLError::LaunchCustomInfo);
         }
         Ok(())
@@ -1104,7 +1105,7 @@ impl LaunchGame {
                     format!(
                         "{}\\{}-{}-natives",
                         self.version_path,
-                        super::main_mod::extract_file_name(self.version_path.as_str()),
+                        crate::extract_file_name(self.version_path.as_str()),
                         LAUNCHER_NANE
                     )
                     .as_str(),
@@ -1127,7 +1128,7 @@ impl LaunchGame {
                     format!("{}\\libraries", self.root_path).as_str(),
                 )
                 .replace("${auth_player_name}", self.account.get_name())
-                .replace("${game_directory}", format!("{}", self.game_path).as_str())
+                .replace("${game_directory}", self.game_path.to_string().as_str())
                 .replace(
                     "${assets_root}",
                     format!("{}\\assets", self.root_path).as_str(),
@@ -1137,7 +1138,7 @@ impl LaunchGame {
                 .replace("${uuid}", self.account.get_uuid())
                 .replace("${auth_access_token}", self.account.get_access_token())
                 .replace("${user_type}", self.account.get_atype())
-                .replace("${version_type}", format!("{}", self.custom_info).as_str())
+                .replace("${version_type}", self.custom_info.to_string().as_str())
                 .replace("${auth_session}", self.account.get_uuid())
                 .replace(
                     "${game_assets}",
@@ -1153,29 +1154,29 @@ impl LaunchGame {
         let def_jvm: String = String::from("-XX:+UseG1GC -XX:-UseAdaptiveSizePolicy -XX:-OmitStackTraceInFastThrow -Dfml.ignoreInvalidMinecraftCertificates=true -Dfml.ignorePatchDiscrepancies=true -Dlog4j2.formatMsgNoLookups=true");
         let defn_jvm: String = String::from("-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump");
         let version_json_path = get_mc_real_path(self.version_path.clone(), ".json");
-        if let None = version_json_path {
+        if version_json_path.is_none() {
             return Err(MMCLLError::GameEligibleJsonNotFound);
         }
         let version_json_path = version_json_path.unwrap();
         let final_json: String;
-        let raw_json = super::main_mod::get_file(version_json_path.as_str());
-        if let None = raw_json {
+        let raw_json = crate::get_file(version_json_path.as_str());
+        if raw_json.is_none() {
             return Err(MMCLLError::GameEligibleJsonNotFound);
         }
         let raw_json = raw_json.unwrap();
         let inherits_json = get_mc_inherits_from(self.version_path.clone(), "inheritsFrom");
-        if let None = inherits_json {
+        if inherits_json.is_none() {
             return Err(MMCLLError::GameInheritsFromVersionLose);
         }
         let inherits_json = inherits_json.unwrap();
         if !inherits_json.eq(self.version_path.as_str()) {
             let file = get_mc_real_path(inherits_json, ".json");
-            if let None = file {
+            if file.is_none() {
                 return Err(MMCLLError::GameInheritsFromVersionLose);
             }
             let file = file.unwrap();
-            let f_json = super::main_mod::get_file(file.as_str());
-            if let None = f_json {
+            let f_json = crate::get_file(file.as_str());
+            if f_json.is_none() {
                 return Err(MMCLLError::GameInheritsFromVersionLose);
             }
             final_json = f_json.unwrap();
@@ -1190,7 +1191,7 @@ impl LaunchGame {
             return Err(MMCLLError::GameCannotUnzipNative);
         }
         let real_json = replace_mc_inherits_from(raw_json, final_json);
-        if let None = real_json {
+        if real_json.is_none() {
             return Err(MMCLLError::GameInheritsJsonStructure);
         }
         let real_json = real_json.unwrap();
@@ -1284,7 +1285,7 @@ impl LaunchAccount {
     )]
     /// 新建一个默认的玩家，仅需输入玩家名称，使用bukkit方式生成一个UUID。
     pub fn new_offline_default(name: &str) -> Self {
-        let uuid = super::main_mod::generate_bukkit_uuid(name);
+        let uuid = crate::generate_bukkit_uuid(name);
         LaunchAccount::new(
             name.to_string(),
             uuid.clone(),
@@ -1337,7 +1338,7 @@ impl LaunchAccount {
             uuid.to_string(),
             access_token.to_string(),
             String::from("msa"),
-            super::main_mod::generate_thirdparty_metadata_base64(url),
+            crate::generate_thirdparty_metadata_base64(url),
             url.to_string(),
             2,
         )

@@ -24,15 +24,15 @@ pub mod some_var {
     use std::{cell::RefCell, sync::atomic::AtomicBool};
     thread_local! {
         /// 是否从官方下载源下载
-        static IS_DOWNLOAD_SOURCE_OFFICIAL: AtomicBool = AtomicBool::new(false);
+        static IS_DOWNLOAD_SOURCE_OFFICIAL: AtomicBool = const { AtomicBool::new(false) };
         /// mc的元数据（可以自己赋值也可以由类库帮忙赋值！）仅能赋值元数据值，如果赋上了别的值，后果自负！
-        pub static MC_ROOT_JSON: RefCell<serde_json::Value> = RefCell::new(serde_json::Value::Null);
+        pub static MC_ROOT_JSON: RefCell<serde_json::Value> = const { RefCell::new(serde_json::Value::Null) };
         /// 设置第三方登录的模块jar文件。在使用第三方登录的时候一定要设置该参数！
-        pub static AUTHLIB_PATH: RefCell<String> = RefCell::new(String::new());
+        pub static AUTHLIB_PATH: RefCell<String> = const { RefCell::new(String::new()) };
         // 最大线程，但是在Rust里指的是最大并发量（必须要提前赋值，否则将按照默认64处理。）
-        pub static BIGGEST_THREAD: RefCell<i32> = RefCell::new(64);
+        pub static BIGGEST_THREAD: RefCell<i32> = const { RefCell::new(64) };
         #[allow(unused)]
-        pub static AUTHLIB_URL: RefCell<String> = RefCell::new(String::new());
+        pub static AUTHLIB_URL: RefCell<String> = const { RefCell::new(String::new()) };
     }
 
     /// 获取是否从官方下载源下载
@@ -49,7 +49,6 @@ pub mod some_var {
 
 /// 从一个path获取外部文件。
 /// 此处使用了encoding转码，以防止有某些大聪明玩家使用GBK方式写文件
-
 pub fn get_file(path: &str) -> Option<String> {
     use std::io::Read;
     let p = std::path::Path::new(path);
@@ -63,7 +62,7 @@ pub fn get_file(path: &str) -> Option<String> {
         if h {
             None
         } else {
-            Some((&cow).to_string())
+            Some(cow.to_string())
         }
     }
 }
@@ -81,7 +80,7 @@ pub fn set_file_vecu8(path: &str, content: &[u8]) -> bool {
     };
     if !parent.exists() || parent.exists() && parent.is_file() {
         let q = std::fs::create_dir_all(parent);
-        if let Err(_) = q {
+        if q.is_err() {
             return false;
         }
     }
@@ -90,16 +89,13 @@ pub fn set_file_vecu8(path: &str, content: &[u8]) -> bool {
         Err(_) => return false,
     };
     use std::io::Write;
-    match f.write_all(&content) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    f.write_all(content).is_ok()
 }
 
 /// 将内容写出到文件
 
 pub fn set_file(path: &str, content: String) -> bool {
-    return set_file_vecu8(path, content.as_bytes());
+    set_file_vecu8(path, content.as_bytes())
 }
 
 /// 删除文件
@@ -109,10 +105,7 @@ pub fn delete_file(path: &str) -> bool {
     if !p.exists() || p.exists() && p.is_dir() {
         return false;
     }
-    match std::fs::remove_file(p) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+    std::fs::remove_file(p).is_ok()
 }
 
 /// 获取某一个文件的SHA1值
@@ -192,28 +185,27 @@ pub fn generate_thirdparty_metadata_base64(url: &str) -> String {
     use base64::Engine;
     let um = account::UrlMethod::new(url);
     let metadata = um.get_default();
-    if let None = metadata {
+    if metadata.is_none() {
         return String::new();
     }
     let metadata = String::from_utf8(metadata.unwrap());
-    if let Err(_) = metadata {
+    if metadata.is_err() {
         return String::new();
     }
-    let base =
-        base64::engine::general_purpose::STANDARD.encode(metadata.unwrap().replace("\\/", "/"));
-    base
+    
+    base64::engine::general_purpose::STANDARD.encode(metadata.unwrap().replace("\\/", "/"))
 }
 
 /// 截取文件名
 
 pub fn extract_file_name(file: &str) -> String {
     let rf = file.rfind("\\");
-    if let None = rf {
+    if rf.is_none() {
         return String::new();
     }
     let rf = rf.unwrap();
     let versub = file.get((rf + 1)..file.len());
-    if let None = versub {
+    if versub.is_none() {
         return String::new();
     }
     let versub = versub.unwrap();
@@ -248,10 +240,10 @@ pub fn get_file_version(file: String) -> Option<String> {
     let fixed_version = file.version_info().ok()?.fixed()?;
     Some(format!(
         "{}.{}.{}.{}",
-        fixed_version.dwFileVersion.Major.to_string(),
-        fixed_version.dwFileVersion.Minor.to_string(),
-        fixed_version.dwFileVersion.Build.to_string(),
-        fixed_version.dwFileVersion.Patch.to_string()
+        fixed_version.dwFileVersion.Major,
+        fixed_version.dwFileVersion.Minor,
+        fixed_version.dwFileVersion.Build,
+        fixed_version.dwFileVersion.Patch
     ))
 }
 

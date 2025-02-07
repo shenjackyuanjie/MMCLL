@@ -164,7 +164,7 @@ pub async fn get_forge_versions(mcversion: &str) -> MMCLLResult<serde_json::Valu
                 _ => (),
             }
         }
-        if rv.len() < 1 {
+        if rv.is_empty() {
             return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
@@ -199,9 +199,9 @@ pub async fn get_fabric_version(mcversion: &str) -> MMCLLResult<serde_json::Valu
         Err(MMCLLError::DownloadQuiltVersionNotFound)
     } else {
         let ser = ser.as_array().unwrap();
-        for i in ser.into_iter() {
+        for i in ser.iter() {
             let c = i["loader"]["version"].as_str();
-            if let None = c {
+            if c.is_none() {
                 continue;
             }
             let c = c.unwrap();
@@ -227,7 +227,7 @@ pub async fn get_fabric_version(mcversion: &str) -> MMCLLResult<serde_json::Valu
             rv.push(serde_json::Value::Object(obj.clone()));
             obj.clear();
         }
-        if rv.len() < 1 {
+        if rv.is_empty() {
             return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
@@ -263,9 +263,9 @@ pub async fn get_quilt_version(mcversion: &str) -> MMCLLResult<serde_json::Value
         Err(MMCLLError::DownloadQuiltVersionNotFound)
     } else {
         let ser = ser.as_array().unwrap();
-        for i in ser.into_iter() {
+        for i in ser.iter() {
             let c = i["loader"]["version"].as_str();
-            if let None = c {
+            if c.is_none() {
                 continue;
             }
             let c = c.unwrap();
@@ -291,7 +291,7 @@ pub async fn get_quilt_version(mcversion: &str) -> MMCLLResult<serde_json::Value
             rv.push(serde_json::Value::Object(obj.clone()));
             obj.clear();
         }
-        if rv.len() < 1 {
+        if rv.is_empty() {
             return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
@@ -320,7 +320,7 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
         let obj = obj.as_object_mut().unwrap();
         let rv = res.get_mut("neoforge").unwrap().as_array_mut().unwrap();
         let ser = ser["files"].as_array().ok_or(15)?;
-        for i in ser.into_iter() {
+        for i in ser.iter() {
             let name = i["name"].as_str().ok_or(16)?;
             let spn = name.split('-').collect::<Vec<&str>>();
             if spn.len() == 2 {
@@ -343,16 +343,16 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
                     String::from("version"),
                     serde_json::Value::String(v.clone()),
                 );
-                obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if is_download_from_official() {
+                obj.insert(String::from("installer"), serde_json::Value::String((if is_download_from_official() {
                     format!("https://maven.neoforged.net/releases/net/neoforged/forge/{}/forge-{}-installer.jar", n.clone(), n.clone())
                 } else {
                     format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
-                })));
+                }).to_string()));
                 rv.push(serde_json::Value::Object(obj.clone()));
                 obj.clear();
             }
         }
-        if rv.len() < 1 {
+        if rv.is_empty() {
             return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
@@ -376,7 +376,7 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
         let obj = obj.as_object_mut().unwrap();
         let rv = res.get_mut("neoforge").unwrap().as_array_mut().unwrap();
         let ser = ser["files"].as_array().ok_or(15)?;
-        for i in ser.into_iter() {
+        for i in ser.iter() {
             let name = i["name"].as_str().ok_or(16)?;
             let srn = name.split("-").collect::<Vec<&str>>();
             let sname = srn[0];
@@ -410,16 +410,16 @@ pub async fn get_neoforge_version(mcversion: &str) -> MMCLLResult<serde_json::Va
                     String::from("version"),
                     serde_json::Value::String(v.clone()),
                 );
-                obj.insert(String::from("installer"), serde_json::Value::String(format!("{}", if is_download_from_official() {
+                obj.insert(String::from("installer"), serde_json::Value::String((if is_download_from_official() {
                     format!("https://maven.neoforged.net/releases/net/neoforged/forge/{}/forge-{}-installer.jar", n.clone(), n.clone())
                 } else {
                     format!("https://bmclapi2.bangbang93.com/neoforge/version/{}/download/installer.jar", n.clone())
-                })));
+                }).to_string()));
                 rv.push(serde_json::Value::Object(obj.clone()));
                 obj.clear();
             }
         }
-        if rv.len() < 1 {
+        if rv.is_empty() {
             return Err(MMCLLError::DownloadForgeVersionNotFound);
         }
         Ok(res.clone())
@@ -439,7 +439,7 @@ async fn download_as_window(
             return Err(MMCLLError::DownloadFileExists);
         }
         let real_file_hash = crate::get_sha1(savepath);
-        if let None = real_file_hash {
+        if real_file_hash.is_none() {
             return Err(MMCLLError::DownloadFileExists);
         }
         let real_file_hash = real_file_hash.unwrap();
@@ -452,11 +452,11 @@ async fn download_as_window(
         }
     } else {
         let parent = file_path.parent();
-        if let None = parent {
+        if parent.is_none() {
             return Err(MMCLLError::DownloadCannotCreateDir);
         }
         let rt = std::fs::create_dir_all(file_path.parent().unwrap());
-        if let Err(_) = rt {
+        if rt.is_err() {
             return Err(MMCLLError::DownloadCannotCreateDir);
         }
     }
@@ -468,7 +468,7 @@ async fn download_as_window(
     }
     let url = crate::account::UrlMethod::new(download_url);
     let url = url.get_default_async().await;
-    if let None = url {
+    if url.is_none() {
         return Err(MMCLLError::DownloadFileDownloadFailure);
     }
     let url = url.unwrap();
@@ -476,7 +476,7 @@ async fn download_as_window(
         super::set_file_vecu8(savepath, &url);
         Ok(())
     } else {
-        return Err(MMCLLError::DownloadFileExists);
+        Err(MMCLLError::DownloadFileExists)
     }
 }
 
@@ -504,7 +504,7 @@ impl DownloadTaskImpl for Vec<DownloadTask> {
                 return true;
             }
         }
-        return false;
+        false
     }
 }
 #[derive(Debug, Clone)]
@@ -643,7 +643,7 @@ impl DownloadMethod {
                 }
             }
             let name = i["name"].as_str();
-            if let None = name {
+            if name.is_none() {
                 continue;
             }
             let mut name = name.unwrap().to_string();
@@ -662,7 +662,7 @@ impl DownloadMethod {
                 name = format!("{}:{}", name, e);
             }
             let real_path = crate::launcher::convert_name_to_path(name.to_string());
-            if let None = real_path {
+            if real_path.is_none() {
                 continue;
             }
             let real_path = real_path.unwrap();
@@ -684,11 +684,7 @@ impl DownloadMethod {
                     real_path.replace("\\", "/")
                 )
             };
-            let sha1 = if let Some(e) = i["sha1"].as_str() {
-                e
-            } else {
-                ""
-            };
+            let sha1 = i["sha1"].as_str().unwrap_or_default();
             let t = DownloadTask {
                 save_path: real_save.clone(),
                 download_url: real_url.clone(),
@@ -700,9 +696,9 @@ impl DownloadMethod {
             lib_vec.push(t);
         }
         //以上为lib_vec赋值了，现在lib_vec里面存放了所有来自libraries的DownloadTask实例~
-        let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| e.clone());
-        let bgt = if bgt > 256 || bgt < 1 {
-            32 as usize
+        let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| *e);
+        let bgt = if !(1..=256).contains(&bgt) {
+            32_usize
         } else {
             bgt as usize
         };
@@ -835,9 +831,9 @@ impl DownloadMethod {
                 });
             }
         }
-        let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| e.clone());
-        let bgt = if bgt > 256 || bgt < 1 {
-            32 as usize
+        let bgt = super::some_var::BIGGEST_THREAD.with_borrow(|e| *e);
+        let bgt = if !(1..=256).contains(&bgt) {
+            32_usize
         } else {
             bgt as usize
         };

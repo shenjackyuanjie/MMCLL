@@ -288,7 +288,7 @@ impl AccountLogin {
             .ok_or(MMCLLError::LoginXstsLiveInvalid)?;
         let j3 = serde_json::from_str::<serde_json::Value>(t3.as_str()).map_err(|_| 24)?;
         let w3 = j3["Token"].as_str();
-        if let None = w3 {
+        if w3.is_none() {
             let ww3 = j3["XErr"].as_i64().ok_or(25)?;
             return if ww3 == 2148916233 {
                 Err(MMCLLError::LoginXstsNoXbox)
@@ -434,7 +434,7 @@ impl AccountLogin {
             .ok_or(MMCLLError::LoginUsernameOrPassword)?;
         let j1 = serde_json::from_str::<serde_json::Value>(t1.as_str()).map_err(|_| 46)?;
         let a1 = j1["accessToken"].as_str();
-        if let None = a1 {
+        if a1.is_none() {
             let err = j1["errorMessage"].as_str().ok_or(47)?;
             return if err.contains("invalid")
                 && err.contains("username")
@@ -452,7 +452,7 @@ impl AccountLogin {
             .as_array()
             .ok_or(51)?;
         let mut v: Vec<AccountResult> = Vec::new();
-        for i in r1.into_iter() {
+        for i in r1.iter() {
             let mut ar = AccountResult::new();
             let name = i["name"].as_str().ok_or(52)?;
             let id = i["id"].as_str().ok_or(53)?;
@@ -473,7 +473,7 @@ impl AccountLogin {
         access_token: String,
         client_token: String,
     ) -> MMCLLResult<AccountResult> {
-        let res = format!("{}/authserver/refresh", self.key.to_string());
+        let res = format!("{}/authserver/refresh", self.key);
         let k1: String;
         if client_token.is_empty() {
             k1 = format!(
@@ -499,7 +499,7 @@ impl AccountLogin {
             .ok_or(MMCLLError::LoginAccessTokenExpire)?;
         let j1 = serde_json::from_str::<serde_json::Value>(t1.as_str()).map_err(|_| 54)?;
         let ac = j1["accessToken"].as_str();
-        if let None = ac {
+        if ac.is_none() {
             let err = j1["errorMessage"].as_str().ok_or(55)?;
             return if err.contains("invalid") && err.contains("token") {
                 Err(MMCLLError::LoginAccessTokenExpire)
